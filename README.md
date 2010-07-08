@@ -5,7 +5,7 @@ Exports an iPhoto library to a folder structure.
 
 Originally written by Derrick Childers and 
 [posted to macosxhints](http://www.macosxhints.com/article.php?story=20081108132735425).
-Modifications by Guillaume Boudreau and Brian Morearty
+Modifications by Guillaume Boudreau and Brian Morearty.
 
 Usage
 -----
@@ -18,8 +18,8 @@ Usage
 Output
 ------
 
-By default, exportiphoto exports Events.  It can also export Albums if you want.  
-(Set useEvents=False in the code).
+By default, exportiphoto exports Events.  It can also export Albums if you want.  (Set 
+useEvents=False in the code).
 
 It creates a separate folder on disk for each event.  Every folder is prefixed
 by the event date in this format: yyyy-mm-dd (because this format is sortable by name).
