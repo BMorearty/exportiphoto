@@ -1,6 +1,6 @@
 # Before running this script, set the following configuration variables:
-albumDataXml="/Users/Brian/Pictures/iPhoto Library/AlbumData.xml"
-targetDir="/Users/Brian/Downloads/iPhoto Export"
+albumDataXml="/Users/YOURUSERNAME/Pictures/iPhoto Library/AlbumData.xml"
+targetDir="/Users/YOURUSERNAME/Downloads/iPhoto Export"
 copyImg=True #set to false to run with out copying files or creating directories
 useEvents=True #set to False to use Albums instead of Events
 
