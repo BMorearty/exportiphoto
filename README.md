@@ -3,7 +3,8 @@ exportiphoto
 
 Exports an iPhoto library to a folder structure.
 
-Originally written by Derrick Childers and posted to http://www.macosxhints.com/article.php?story=20081108132735425
+Originally written by Derrick Childers and 
+[posted to macosxhints](http://www.macosxhints.com/article.php?story=20081108132735425).
 Modifications by Guillaume Boudreau and Brian Morearty
 
 Usage
@@ -27,7 +28,7 @@ If the event has a name it is appended to the end of the folder name.
 Example
 -------
 
-Let's say you have the following events--two unnamed and one named:
+Let's say you have the following events in iPhoto--two unnamed and one named:
 
     Jun 10, 2009
     Charlie's Birthday Party
