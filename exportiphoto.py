@@ -1,7 +1,3 @@
-# exportiphoto.py
-# Originally written by Derrick Childers and posted to http://www.macosxhints.com/article.php?story=20081108132735425
-# Modifications by Guillaume Boudreau and Brian Morearty
-
 # Before running this script, set the following configuration variables:
 albumDataXml="/Users/Brian/Pictures/iPhoto Library/AlbumData.xml"
 targetDir="/Users/Brian/Downloads/iPhoto Export"
