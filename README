@@ -2,3 +2,10 @@ Exports an iPhoto library to a folder structure.
 
 Originally written by Derrick Childers and posted to http://www.macosxhints.com/article.php?story=20081108132735425
 Modifications by Guillaume Boudreau and Brian Morearty
+
+Usage:
+
+1. Modify the variables in the first few lines of exportiphoto.py
+2. Run this:
+     python exportiphoto.py
+3. There is no step 3
