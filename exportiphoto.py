@@ -5,7 +5,7 @@ copyImg=True #set to false to run with out copying files or creating directories
 useEvents=True #set to False to use Albums instead of Events
 
 from xml.dom.minidom import parse, parseString, Node
-import os, time, stat, shutil, sys, datetime
+import os, time, stat, shutil, sys, datetime, re
 
 def findChildElementsByName(parent, name):
     result = []
@@ -44,10 +44,10 @@ masterImageListDict = getValueElementForKey(topMostDict, "Master Image List")
 #walk through all the rolls (events) / albums
 if useEvents:
     listOfSomethingArray = listOfRollsArray
-    useYear = True
+    useDate = True
 else:
     listOfSomethingArray = listOfAlbumsArray
-    useYear = False
+    useDate = False
 
 for folderDict in findChildElementsByName(listOfSomethingArray, 'dict'):
     if useEvents:
@@ -67,11 +67,12 @@ for folderDict in findChildElementsByName(listOfSomethingArray, 'dict'):
             #continue
         print "\n\nProcessing Album: %s" % (folderName)
 
-    if useYear:
+    if useDate:
         appleTime = getElementText(getValueElementForKey(folderDict, "RollDateAsTimerInterval"))
-        year = str(getAppleTime(appleTime).year) + "/"
+        rollTime = getAppleTime(appleTime)
+        date = '%(year)d-%(month)02d-%(day)02d' % { 'year': rollTime.year, 'month': rollTime.month, 'day': rollTime.day }
     else:
-        year = ''
+        date = ''
 
     #walk through all the images in this roll/event/album
     imageIdArray = getValueElementForKey(folderDict, "KeyList")
@@ -85,7 +86,13 @@ for folderDict in findChildElementsByName(listOfSomethingArray, 'dict'):
 
         modifiedStat = os.stat(sourceImageFilePath)
         basename = os.path.basename(sourceImageFilePath)
-        targetFileDir = targetDir + "/" + year + folderName
+        if useDate and re.match("[A-Z][a-z]{2} [0-9]{1,2}, [0-9]{4}", folderName):
+            outputPath = date
+        elif useDate:
+            outputPath = date + " " + folderName
+        else:
+            outputPath = folderName
+        targetFileDir = targetDir + "/" + outputPath
         
         if not os.path.exists(targetFileDir):
             print "Directory did not exist - Creating: %s" % targetFileDir
