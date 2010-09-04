@@ -39,14 +39,14 @@ def main():
     masterImageListDict = getValue(topMostDict, "Master Image List")
 
     if useEvents:
-        listOfSomethingArray = getValue(topMostDict, "List of Rolls")
+        targetLists = getValue(topMostDict, "List of Rolls")
         useDate = True
     else:
-        listOfSomethingArray = getValue(topMostDict, "List of Albums")
+        targetLists = getValue(topMostDict, "List of Albums")
         useDate = False
 
     # walk through all the rolls (events) / albums
-    for folderDict in findChildren(listOfSomethingArray, 'dict'):
+    for folderDict in findChildren(targetLists, 'dict'):
         if useEvents:
             folderName = getElementText(getValue(folderDict, "RollName"))
             print "\n\nProcessing Roll: %s" % (folderName)
@@ -87,8 +87,8 @@ def main():
                 outputPath = date + " " + folderName
             else:
                 outputPath = folderName
-            targetFileDir = targetDir + "/" + outputPath
-        
+                
+            targetFileDir = targetDir + "/" + outputPath        
             if not os.path.exists(targetFileDir):
                 print "Directory did not exist - Creating: %s" % targetFileDir
                 if copyImg:
@@ -96,28 +96,20 @@ def main():
 
             tFilePath = targetFileDir + "/" + basename
 
-            iPhotoFileIsNewer = False
+            # skip unchanged files
             if os.path.exists(tFilePath):
                 tStat = os.stat(tFilePath)
-                # why oh why is modified time not getting copied over exactly the same?
-                if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) > 10 or \
-                  tStat[stat.ST_SIZE] != mStat[stat.ST_SIZE]:
-                    iPhotoFileIsNewer = True
-            else:
-                iPhotoFileIsNewer = True
+                if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) <= 10 or \
+                  tStat[stat.ST_SIZE] == mStat[stat.ST_SIZE]:
+                    sys.stdout.write(".")
+                    continue
 
-            if iPhotoFileIsNewer:
-                msg = "copy from:%s to:%s" % (
-                    mFilePath, tFilePath
-                )
-                if copyImg:
-                    print msg
-                    shutil.copy2(mFilePath, tFilePath)
-                else:
-                    print "test - %s" % (msg)
+            msg = "copy from:%s to:%s" % (mFilePath, tFilePath)
+            if copyImg:
+                print msg
+                shutil.copy2(mFilePath, tFilePath)
             else:
-                sys.stdout.write(".")
-                sys.stdout.flush()
+                print "test - %s" % (msg)
 
     albumDataDom.unlink()
 
