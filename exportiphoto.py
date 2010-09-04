@@ -4,8 +4,15 @@ targetDir="/Users/YOURUSERNAME/Downloads/iPhoto Export"
 copyImg=True #set to false to run with out copying files or creating directories
 useEvents=True #set to False to use Albums instead of Events
 
+import datetime
+import os
+import re
+import shutil
+import stat
+import sys
+import time
+
 from xml.dom.minidom import parse, parseString, Node
-import os, time, stat, shutil, sys, datetime, re
 
 def findChildren(parent, name):
     result = []
