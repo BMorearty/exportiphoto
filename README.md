@@ -5,21 +5,25 @@ Exports an iPhoto library to a folder structure.
 
 Originally written by Derrick Childers and 
 [posted to macosxhints](http://www.macosxhints.com/article.php?story=20081108132735425).
-Modifications by Guillaume Boudreau and Brian Morearty.
+Modifications by Guillaume Boudreau, 
+[Brian Morearty](http://github.com/BMorearty), and
+[Mark Nottingham](http://github.com/mnot).
 
 Usage
 -----
 
-1. Modify the variables in the first few lines of exportiphoto.py
-2. Run this:
-        python exportiphoto.py
-3. There is no step 3
+1. Run this:
+        python exportiphoto.py [options] <AlbumData.xml> <destination dir>
+   Options include:
+        -t, --test       don't copy images; dry run
+        -a, --albums     use albums instead of events
+2. There is no step 2
 
 Output
 ------
 
-By default, exportiphoto exports Events.  It can also export Albums if you want.  (Set 
-useEvents=False in the code).
+By default, exportiphoto exports Events.  It can also export Albums if you want.  (Use
+the -a option on the command line).
 
 It creates a separate folder on disk for each event.  Every folder is prefixed
 by the event date in this format: yyyy-mm-dd (because this format is sortable by name).
