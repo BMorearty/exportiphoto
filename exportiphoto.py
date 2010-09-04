@@ -16,8 +16,13 @@ from xml.dom.minidom import parse, Node
 
 def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
     print "Parsing..."
-    albumDataDom = parse(albumDataXml)
+    try:
+        albumDataDom = parse(albumDataXml)
+    except IOError, why:
+        return error("Can't parse Album Data: %s" % why[1])
     topMostDict = albumDataDom.documentElement.getElementsByTagName('dict')[0]
+    if not topMostDict:
+        return error("Album Data doesn't appear to be in the right format.")
     masterImageListDict = getValue(topMostDict, "Master Image List")
 
     if useEvents:
@@ -74,7 +79,10 @@ def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
             if not os.path.exists(targetFileDir):
                 print "Creating directory: %s" % targetFileDir
                 if copyImg:
-                    os.makedirs(targetFileDir)
+                    try:
+                        os.makedirs(targetFileDir)
+                    except OSError, why:
+                        error("Can't create directory: %s" % why[1])
 
             tFilePath = targetFileDir + "/" + basename
 
@@ -117,11 +125,16 @@ def getValue(parent, keyName):
             while(sib is not None and sib.nodeType != Node.ELEMENT_NODE):
                 sib = sib.nextSibling
             return sib
+    error("Can't find %s in Album Data." % keyName)
 
 APPLE_BASE = 978307200 # 2001/1/1
 def getAppleTime(value):
     "Converts a numeric Apple time stamp into a date and time"
     return datetime.datetime.fromtimestamp(APPLE_BASE + float(value))
+
+def error(msg):
+    sys.stderr.write("ERROR: " + msg + "\n")
+    sys.exit(1)
 
 
 if __name__ == '__main__':
