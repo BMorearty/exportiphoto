@@ -16,7 +16,7 @@ from xml.dom.minidom import parse, parseString, Node
 
 
 def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
-    print "Parsing AlbumData.xml"
+    print "Parsing..."
     albumDataDom = parse(albumDataXml)
     topMostDict = albumDataDom.documentElement.getElementsByTagName('dict')[0]
     masterImageListDict = getValue(topMostDict, "Master Image List")
@@ -73,7 +73,7 @@ def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
                 
             targetFileDir = targetDir + "/" + outputPath        
             if not os.path.exists(targetFileDir):
-                print "Directory did not exist - Creating: %s" % targetFileDir
+                print "Creating directory: %s" % targetFileDir
                 if copyImg:
                     os.makedirs(targetFileDir)
 
@@ -87,7 +87,7 @@ def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
                     sys.stdout.write(".")
                     continue
 
-            msg = "copy from:%s to:%s" % (mFilePath, tFilePath)
+            msg = "copying from:%s to:%s" % (mFilePath, tFilePath)
             if copyImg:
                 print msg
                 shutil.copy2(mFilePath, tFilePath)
@@ -119,8 +119,8 @@ def getValue(parent, keyName):
 
 APPLE_BASE = 978307200 # 2001/1/1
 def getAppleTime(value):
-  '''Converts a numeric Apple time stamp into a date and time'''
-  return datetime.datetime.fromtimestamp(APPLE_BASE + float(value))
+    "Converts a numeric Apple time stamp into a date and time"
+    return datetime.datetime.fromtimestamp(APPLE_BASE + float(value))
 
 
 if __name__ == '__main__':
