@@ -14,30 +14,6 @@ import time
 
 from xml.dom.minidom import parse, parseString, Node
 
-def findChildren(parent, name):
-    result = []
-    for child in parent.childNodes:
-        if child.nodeName == name:
-            result.append(child)
-    return result
-
-def getElementText(element):
-    if element is None: return None
-    if len(element.childNodes) == 0: return None
-    else: return element.childNodes[0].nodeValue
-
-def getValue(parent, keyName):
-    for key in findChildren(parent, "key"):
-        if getElementText(key) == keyName:
-            sib = key.nextSibling
-            while(sib is not None and sib.nodeType != Node.ELEMENT_NODE):
-                sib = sib.nextSibling
-            return sib
-
-APPLE_BASE = 978307200 # 2001/1/1
-def getAppleTime(value):
-  '''Converts a numeric Apple time stamp into a date and time'''
-  return datetime.datetime.fromtimestamp(APPLE_BASE + float(value))
 
 def main():
     print "Parsing AlbumData.xml"
@@ -119,6 +95,33 @@ def main():
                 print "test - %s" % (msg)
 
     albumDataDom.unlink()
+
+
+def findChildren(parent, name):
+    result = []
+    for child in parent.childNodes:
+        if child.nodeName == name:
+            result.append(child)
+    return result
+
+def getElementText(element):
+    if element is None: return None
+    if len(element.childNodes) == 0: return None
+    else: return element.childNodes[0].nodeValue
+
+def getValue(parent, keyName):
+    for key in findChildren(parent, "key"):
+        if getElementText(key) == keyName:
+            sib = key.nextSibling
+            while(sib is not None and sib.nodeType != Node.ELEMENT_NODE):
+                sib = sib.nextSibling
+            return sib
+
+APPLE_BASE = 978307200 # 2001/1/1
+def getAppleTime(value):
+  '''Converts a numeric Apple time stamp into a date and time'''
+  return datetime.datetime.fromtimestamp(APPLE_BASE + float(value))
+
 
 if __name__ == '__main__':
     main()
