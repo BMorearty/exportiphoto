@@ -9,10 +9,9 @@ import re
 import shutil
 import stat
 import sys
-import time
 
 from optparse import OptionParser
-from xml.dom.minidom import parse, parseString, Node
+from xml.dom.minidom import parse, Node
 
 
 def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
@@ -58,7 +57,7 @@ def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
             imageId = getElementText(imageIdElement)
             imageDict = getValue(masterImageListDict, imageId)
             mFilePath = getElementText(getValue(imageDict, "ImagePath"))
-            oFilePath = getElementText(getValue(imageDict, "OriginalPath"))
+#            oFilePath = getElementText(getValue(imageDict, "OriginalPath"))
 
             mStat = os.stat(mFilePath)
             basename = os.path.basename(mFilePath)
@@ -106,8 +105,10 @@ def findChildren(parent, name):
 
 def getElementText(element):
     if element is None: return None
-    if len(element.childNodes) == 0: return None
-    else: return element.childNodes[0].nodeValue
+    if len(element.childNodes) == 0: 
+        return None
+    else: 
+        return element.childNodes[0].nodeValue
 
 def getValue(parent, keyName):
     for key in findChildren(parent, "key"):
