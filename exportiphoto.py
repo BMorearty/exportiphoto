@@ -162,5 +162,7 @@ if __name__ == '__main__':
             "Please specify an iPhoto library and a destination."
         )
 
-    main(args[0], args[1], not options.test, not options.albums)
-    
+    try:
+        main(args[0], args[1], not options.test, not options.albums)
+    except KeyboardInterrupt:
+        error("Interrupted by user. Copy may be incomplete.")
