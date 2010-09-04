@@ -38,6 +38,10 @@ Let's say you have the following events in iPhoto--two unnamed and one named:
     Charlie's Birthday Party
     Jun 20, 2009
 
+Run:
+
+    python exportiphoto.py ~/Pictures/iPhoto\ Library/AlbumData.xml ~/Downloads/iPhoto\ Export
+
 If Charlie's birthday party was on June 15th, the output folders will be:
 
     2009-06-10
