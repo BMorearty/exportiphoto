@@ -13,6 +13,7 @@ import sys
 from optparse import OptionParser
 from xml.dom.minidom import parse, Node
 
+# FIXME: use SAX so we don't have to load XML all into memory
 
 def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
     print "Parsing..."
@@ -56,7 +57,7 @@ def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
         else:
             date = ''
 
-        #walk through all the images in this roll/event/album
+        # Walk through all the images in this roll/event/album
         imageIdArray = getValue(folderDict, "KeyList")
         for imageIdElement in findChildren(imageIdArray, 'string'):
             imageId = getElementText(imageIdElement)
@@ -86,7 +87,7 @@ def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
 
             tFilePath = targetFileDir + "/" + basename
 
-            # skip unchanged files
+            # Skip unchanged files
             if os.path.exists(tFilePath):
                 tStat = os.stat(tFilePath)
                 if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) <= 10 or \
@@ -97,6 +98,7 @@ def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
             msg = "copying from:%s to:%s" % (mFilePath, tFilePath)
             if copyImg:
                 print msg
+                # TODO: try findertools.copy and macostools.copy
                 shutil.copy2(mFilePath, tFilePath)
             else:
                 print "test - %s" % (msg)
