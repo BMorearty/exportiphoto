@@ -7,7 +7,7 @@ useEvents=True #set to False to use Albums instead of Events
 from xml.dom.minidom import parse, parseString, Node
 import os, time, stat, shutil, sys, datetime, re
 
-def findChildElementsByName(parent, name):
+def findChildren(parent, name):
     result = []
     for child in parent.childNodes:
         if child.nodeName == name:
@@ -19,14 +19,13 @@ def getElementText(element):
     if len(element.childNodes) == 0: return None
     else: return element.childNodes[0].nodeValue
 
-def getValueElementForKey(parent, keyName):
-    for key in findChildElementsByName(parent, "key"):
+def getValue(parent, keyName):
+    for key in findChildren(parent, "key"):
         if getElementText(key) == keyName:
             sib = key.nextSibling
             while(sib is not None and sib.nodeType != Node.ELEMENT_NODE):
                 sib = sib.nextSibling
             return sib
-
 
 APPLE_BASE = 978307200 # 2001/1/1
 def getAppleTime(value):
@@ -36,58 +35,53 @@ def getAppleTime(value):
 def main():
     print "Parsing AlbumData.xml"
     albumDataDom = parse(albumDataXml)
-    topElement = albumDataDom.documentElement
-    topMostDict = topElement.getElementsByTagName('dict')[0]
-    listOfRollsArray = getValueElementForKey(topMostDict, "List of Rolls")
-    listOfAlbumsArray = getValueElementForKey(topMostDict, "List of Albums")
-    masterImageListDict = getValueElementForKey(topMostDict, "Master Image List")
+    topMostDict = albumDataDom.documentElement.getElementsByTagName('dict')[0]
+    masterImageListDict = getValue(topMostDict, "Master Image List")
 
-    #walk through all the rolls (events) / albums
     if useEvents:
-        listOfSomethingArray = listOfRollsArray
+        listOfSomethingArray = getValue(topMostDict, "List of Rolls")
         useDate = True
     else:
-        listOfSomethingArray = listOfAlbumsArray
+        listOfSomethingArray = getValue(topMostDict, "List of Albums")
         useDate = False
 
-    for folderDict in findChildElementsByName(listOfSomethingArray, 'dict'):
+    # walk through all the rolls (events) / albums
+    for folderDict in findChildren(listOfSomethingArray, 'dict'):
         if useEvents:
-            folderName = getElementText(getValueElementForKey(folderDict, "RollName"))
+            folderName = getElementText(getValue(folderDict, "RollName"))
             print "\n\nProcessing Roll: %s" % (folderName)
         else:
-            folderName = getElementText(getValueElementForKey(folderDict, "AlbumName"))
+            folderName = getElementText(getValue(folderDict, "AlbumName"))
             if folderName == 'Photos':
                 continue
-            # Uncomment the following 3 lines to only export rolls/albums that start with "Something"
-            #if folderName.find('Something') != 0:
-                #print "\nSkipping Album: %s" % (folderName)
-                #continue
-            # Uncomment the following 3 lines to only export rolls/albums that contain "Something"
-            #if folderName.find('Something') == -1:
-                #print "\nSkipping Album: %s" % (folderName)
-                #continue
             print "\n\nProcessing Album: %s" % (folderName)
 
         if useDate:
-            appleTime = getElementText(getValueElementForKey(folderDict, "RollDateAsTimerInterval"))
+            appleTime = getElementText(
+                getValue(folderDict, "RollDateAsTimerInterval")
+            )
             rollTime = getAppleTime(appleTime)
-            date = '%(year)d-%(month)02d-%(day)02d' % { 'year': rollTime.year, 'month': rollTime.month, 'day': rollTime.day }
+            date = '%(year)d-%(month)02d-%(day)02d' % {
+                'year': rollTime.year,
+                'month': rollTime.month,
+                'day': rollTime.day
+            }
         else:
             date = ''
 
         #walk through all the images in this roll/event/album
-        imageIdArray = getValueElementForKey(folderDict, "KeyList")
-        for imageIdElement in findChildElementsByName(imageIdArray, 'string'):
+        imageIdArray = getValue(folderDict, "KeyList")
+        for imageIdElement in findChildren(imageIdArray, 'string'):
             imageId = getElementText(imageIdElement)
-            imageDict = getValueElementForKey(masterImageListDict, imageId)
-            modifiedFilePath = getElementText(getValueElementForKey(imageDict, "ImagePath"))
-            originalFilePath = getElementText(getValueElementForKey(imageDict, "OriginalPath"))
+            imageDict = getValue(masterImageListDict, imageId)
+            mFilePath = getElementText(getValue(imageDict, "ImagePath"))
+            oFilePath = getElementText(getValue(imageDict, "OriginalPath"))
 
-            sourceImageFilePath = modifiedFilePath
-
-            modifiedStat = os.stat(sourceImageFilePath)
-            basename = os.path.basename(sourceImageFilePath)
-            if useDate and re.match("[A-Z][a-z]{2} [0-9]{1,2}, [0-9]{4}", folderName):
+            mStat = os.stat(mFilePath)
+            basename = os.path.basename(mFilePath)
+            if useDate and re.match(
+                "[A-Z][a-z]{2} [0-9]{1,2}, [0-9]{4}", folderName
+            ):
                 outputPath = date
             elif useDate:
                 outputPath = date + " " + folderName
@@ -100,26 +94,25 @@ def main():
                 if copyImg:
                     os.makedirs(targetFileDir)
 
-            targetFilePath = targetFileDir + "/" + basename
+            tFilePath = targetFileDir + "/" + basename
+
             iPhotoFileIsNewer = False
-
-            if os.path.exists(targetFilePath):
-                targetStat = os.stat(targetFilePath)
-
-                #print "modified: %d %d" % (modifiedStat[stat.ST_MTIME], modifiedStat[stat.ST_SIZE])
-                #print "target  : %d %d" % (targetStat[stat.ST_MTIME], targetStat[stat.ST_SIZE])
-
-                #why oh why is modified time not getting copied over exactly the same?
-                if abs(targetStat[stat.ST_MTIME] - modifiedStat[stat.ST_MTIME]) > 10 or targetStat[stat.ST_SIZE] != modifiedStat[stat.ST_SIZE]:
+            if os.path.exists(tFilePath):
+                tStat = os.stat(tFilePath)
+                # why oh why is modified time not getting copied over exactly the same?
+                if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) > 10 or \
+                  tStat[stat.ST_SIZE] != mStat[stat.ST_SIZE]:
                     iPhotoFileIsNewer = True
             else:
                 iPhotoFileIsNewer = True
 
             if iPhotoFileIsNewer:
-                msg = "copy from:%s to:%s" % (sourceImageFilePath, targetFilePath)
+                msg = "copy from:%s to:%s" % (
+                    mFilePath, tFilePath
+                )
                 if copyImg:
                     print msg
-                    shutil.copy2(sourceImageFilePath, targetFilePath)
+                    shutil.copy2(mFilePath, tFilePath)
                 else:
                     print "test - %s" % (msg)
             else:
