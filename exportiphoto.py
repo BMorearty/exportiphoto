@@ -1,8 +1,7 @@
-# Before running this script, set the following configuration variables:
-albumDataXml="/Users/YOURUSERNAME/Pictures/iPhoto Library/AlbumData.xml"
-targetDir="/Users/YOURUSERNAME/Downloads/iPhoto Export"
-copyImg=True #set to false to run with out copying files or creating directories
-useEvents=True #set to False to use Albums instead of Events
+#!/usr/bin/env python
+
+
+__version__ = "0.5"
 
 import datetime
 import os
@@ -12,10 +11,11 @@ import stat
 import sys
 import time
 
+from optparse import OptionParser
 from xml.dom.minidom import parse, parseString, Node
 
 
-def main():
+def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
     print "Parsing AlbumData.xml"
     albumDataDom = parse(albumDataXml)
     topMostDict = albumDataDom.documentElement.getElementsByTagName('dict')[0]
@@ -124,5 +124,27 @@ def getAppleTime(value):
 
 
 if __name__ == '__main__':
-    main()
+    usage   = """Usage: %prog [options] <AlbumData.xml> <destination dir>"""
+    version = """exportiphoto version %s""" % __version__
+    option_parser = OptionParser(usage=usage, version=version)
+    option_parser.set_defaults(test=False, albums=False)
+
+    option_parser.add_option("-t", "--test",
+                             action="store_true", dest="test",
+                             help="don't copy images; dry run"
+    )
+
+    option_parser.add_option("-a", "--albums",
+                             action="store_true", dest="albums",
+                             help="use albums instead of events"
+    )
+
+    (options, args) = option_parser.parse_args()
+    
+    if len(args) != 2:
+        option_parser.error(
+            "Please specify an iPhoto library and a destination."
+        )
+
+    main(args[0], args[1], not options.test, not options.albums)
     
