@@ -24,20 +24,22 @@ class iPhotoLibraryError(Exception):
     pass
 
 class iPhotoLibrary(object):
-    def __init__(self, albumDir):
-        print "Parsing..."
+    def __init__(self, albumDir, quiet=False):
+        self.quiet = quiet
         albumDataXml = os.path.join(albumDir, "AlbumData.xml")
+        self.status("Parsing iPhoto Library data... ")
         try:
             self._albumDataDom = parse(albumDataXml)
         except IOError, why:
             raise iPhotoLibraryError, "Can't parse %s: %s" % (
                 albumDataXml, why[1]
             )
+        self.status("Done.\n")
         topDict = \
             self._albumDataDom.documentElement.getElementsByTagName('dict')[0]
         if not topDict:
             raise iPhotoLibraryError, \
-                "Album Data doesn't appear to be in the right format."
+                "AlbumData.xml doesn't appear to be in the right format."
         self.RollList = self.getValue(topDict, "List of Rolls")
         self.AlbumList = self.getValue(topDict, "List of Albums")
         self.keywordDict = self.getValue(topDict, "List of Keywords")
@@ -49,6 +51,11 @@ class iPhotoLibrary(object):
             self._albumDataDom.unlink()
         except:
             pass
+
+    def status(self, msg):
+        if not self.quiet:
+            sys.stdout.write(msg)
+            sys.stdout.flush()
 
     APPLE_BASE = 978307200 # 2001/1/1
     def walk(self, funcs, albums=False):
@@ -76,12 +83,18 @@ class iPhotoLibrary(object):
                           self.getValue(folderDict, "RollDateAsTimerInterval")
                          ))
             )
-            print "\n\nProcessing: %s" % (folderName)
-            imageIds = self.getValue(folderDict, "KeyList")
-            for image in self.findChildren(imageIds, 'string'):
+            images = self.findChildren(
+                self.getValue(folderDict, "KeyList"),
+                'string'
+            )
+            self.status("Processing: %s (%i images)...\n" % (
+                folderName, len(images)
+            ))
+            for image in images:
                 imageId = self.getText(image)
                 for func in funcs:
                     func(imageId, folderName, folderDate)
+            self.status("\n")
 
     def copyImage(self, imageId, folderName, folderDate, 
                   targetDir, writeMD=False):
@@ -110,12 +123,12 @@ class iPhotoLibrary(object):
         targetFileDir = targetDir + "/" + outputPath        
 
         if not os.path.exists(targetFileDir):
-            print "Creating directory: %s" % targetFileDir
+            self.status("Creating %s\n" % targetFileDir)
             try:
                 os.makedirs(targetFileDir)
             except OSError, why:
                 raise iPhotoLibraryError, \
-                    "Can't create directory: %s" % why[1]
+                    "Can't create: %s" % why[1]
 
         mFilePath = self.getText(self.getValue(imageDict, "ImagePath"))
         basename = os.path.basename(mFilePath)
@@ -127,10 +140,9 @@ class iPhotoLibrary(object):
             tStat = os.stat(tFilePath)
             if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) <= 10 or \
               tStat[stat.ST_SIZE] == mStat[stat.ST_SIZE]:
-                sys.stdout.write(".")
                 return
 
-        print "copying from:%s to:%s" % (mFilePath, tFilePath)
+        self.status(".")
         # TODO: try findertools.copy and macostools.copy
         shutil.copy2(mFilePath, tFilePath)
         if writeMD:
@@ -154,7 +166,7 @@ class iPhotoLibrary(object):
         keywords = [self.lookupKeyword(i) for i in kwids]
 
         if caption or comment or rating:
-            print "writing metadata..."
+            self.status("+")
             md = pyexiv2.ImageMetadata(filePath)
             md.read()
             md["Iptc.Application2.Headline"] = [caption]
@@ -208,7 +220,7 @@ class iPhotoLibrary(object):
 
             
 def error(msg):
-    sys.stderr.write("ERROR: " + msg + "\n")
+    sys.stderr.write("\n%s\n" % msg)
     sys.exit(1)
 
 
@@ -241,8 +253,13 @@ if __name__ == '__main__':
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate, 
                   sys.argv[2], options.metadata)
+    except iPhotoLibraryError, why:
+        error(why[0])
+    except KeyboardInterrupt:
+        error("Interrupted.")
+    try:    
         library.walk([copyImage], options.albums)
     except iPhotoLibraryError, why:
         error(why[0])
     except KeyboardInterrupt:
-        error("Interrupted by user. Copy may be incomplete.")
+        error("Interrupted. Copy may be incomplete.")
