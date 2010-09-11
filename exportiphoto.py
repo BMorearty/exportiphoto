@@ -18,7 +18,7 @@ try:
 except ImportError:
     pyexiv2 = None
 
-# FIXME: use SAX so we don't have to load XML all into memory
+# FIXME: use SAX or pulldom so we don't have to load XML all into memory
 
 class iPhotoLibraryError(Exception):
     pass
