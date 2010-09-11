@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 
-__version__ = "0.5"
+__version__ = "0.6"
 
 import datetime
 import os
@@ -20,176 +20,192 @@ except ImportError:
 
 # FIXME: use SAX so we don't have to load XML all into memory
 
-def main(albumDataXml, targetDir, 
-         copyImg=True, useEvents=True, writeMd=False):
-    print "Parsing..."
-    try:
-        albumDataDom = parse(albumDataXml)
-    except IOError, why:
-        return error("Can't parse Album Data: %s" % why[1])
-    topMostDict = albumDataDom.documentElement.getElementsByTagName('dict')[0]
-    if not topMostDict:
-        return error("Album Data doesn't appear to be in the right format.")
-    masterImageListDict = getValue(topMostDict, "Master Image List")
-    keywordDict = getValue(topMostDict, "List of Keywords")
+class iPhotoLibrary(object):
+    def __init__(self, albumDir):
+        print "Parsing..."
+        albumDataXml = os.path.join(albumDir, "AlbumData.xml")
+        try:
+            self._albumDataDom = parse(albumDataXml)
+        except IOError, why:
+            return error("Can't parse Album Data: %s" % why[1])
+        topDict = \
+            self._albumDataDom.documentElement.getElementsByTagName('dict')[0]
+        if not topDict:
+            return error("Album Data doesn't appear to be in the right format.")
+        self.RollList = self.getValue(topDict, "List of Rolls")
+        self.AlbumList = self.getValue(topDict, "List of Albums")
+        self.keywordDict = self.getValue(topDict, "List of Keywords")
+        self.ImageDict = self.getValue(topDict, "Master Image List")
+        self._keyword_cache = {}
 
-    if useEvents:
-        targetLists = getValue(topMostDict, "List of Rolls")
-        useDate = True
-    else:
-        targetLists = getValue(topMostDict, "List of Albums")
-        useDate = False
+    def __del__(self):
+        self._albumDataDom.unlink()
 
-    # walk through all the rolls (events) / albums
-    for folderDict in findChildren(targetLists, 'dict'):
-        if useEvents:
-            folderName = getElementText(getValue(folderDict, "RollName"))
-            print "\n\nProcessing Roll: %s" % (folderName)
+    APPLE_BASE = 978307200 # 2001/1/1
+    def walk(self, funcs, albums=False):
+        """
+        Walk through the events or albums (depending on the value of albums)
+        in this library and apply each function in the list funcs to each 
+        image, calling it as:
+           func(folderName, folderDate, imageId)
+        where:
+         - folderName is the name the folder, 
+         - folderDate is the date of the folder, and
+         - imageId is the string identifier for the image.
+        """
+        if albums:
+            targetList = self.AlbumList
+            targetName = "AlbumName"
         else:
-            folderName = getElementText(getValue(folderDict, "AlbumName"))
-            if folderName == 'Photos':
-                continue
-            print "\n\nProcessing Album: %s" % (folderName)
-
-        if useDate:
-            appleTime = getElementText(
-                getValue(folderDict, "RollDateAsTimerInterval")
+            targetList = self.RollList
+            targetName = "RollName"
+        for folderDict in self.findChildren(targetList, 'dict'):
+            folderName = self.getText(self.getValue(folderDict, targetName))
+            folderDate = datetime.datetime.fromtimestamp(
+                       self.APPLE_BASE 
+                       + float(self.getText(
+                          self.getValue(folderDict, "RollDateAsTimerInterval")
+                         ))
             )
-            rollTime = getAppleTime(appleTime)
+            print "\n\nProcessing: %s" % (folderName)
+            imageIds = self.getValue(folderDict, "KeyList")
+            for image in self.findChildren(imageIds, 'string'):
+                imageId = self.getText(image)
+                for func in funcs:
+                    func(imageId, folderName, folderDate)
+
+    def copyImage(self, imageId, folderName, folderDate, 
+                  targetDir, writeMD=False):
+        """
+        Copy an image from the library to a folder in the targetDir. The
+        name of the folder is based on folderName and folderDate; if
+        folderDate is None, it's only based upon the folderName.
+        
+        If writeMD is True, also write the image metadata from the library
+        to the copy.
+        """
+        imageDict = self.getValue(self.ImageDict, imageId)
+
+        if folderDate:
             date = '%(year)d-%(month)02d-%(day)02d' % {
-                'year': rollTime.year,
-                'month': rollTime.month,
-                'day': rollTime.day
+                'year': folderDate.year,
+                'month': folderDate.month,
+                'day': folderDate.day
             }
-        else:
-            date = ''
-
-        # Walk through all the images in this roll/event/album
-        imageIdArray = getValue(folderDict, "KeyList")
-        for imageIdElement in findChildren(imageIdArray, 'string'):
-            imageId = getElementText(imageIdElement)
-            imageDict = getValue(masterImageListDict, imageId)
-            mFilePath = getElementText(getValue(imageDict, "ImagePath"))
-#            oFilePath = getElementText(getValue(imageDict, "OriginalPath"))
-
-            mStat = os.stat(mFilePath)
-            basename = os.path.basename(mFilePath)
-            if useDate and re.match(
-                "[A-Z][a-z]{2} [0-9]{1,2}, [0-9]{4}", folderName
-            ):
+            if re.match("[A-Z][a-z]{2} [0-9]{1,2}, [0-9]{4}", folderName):
                 outputPath = date
-            elif useDate:
+            else:
                 outputPath = date + " " + folderName
-            else:
-                outputPath = folderName
-                
-            targetFileDir = targetDir + "/" + outputPath        
-            if not os.path.exists(targetFileDir):
-                print "Creating directory: %s" % targetFileDir
-                if copyImg:
-                    try:
-                        os.makedirs(targetFileDir)
-                    except OSError, why:
-                        error("Can't create directory: %s" % why[1])
+        else:
+            outputPath = folderName
+        targetFileDir = targetDir + "/" + outputPath        
 
-            tFilePath = targetFileDir + "/" + basename
+        if not os.path.exists(targetFileDir):
+            print "Creating directory: %s" % targetFileDir
+            try:
+                os.makedirs(targetFileDir)
+            except OSError, why:
+                error("Can't create directory: %s" % why[1])
 
-            # Skip unchanged files, unless we're writing metadata.
-            if not writeMd and os.path.exists(tFilePath):
-                tStat = os.stat(tFilePath)
-                if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) <= 10 or \
-                  tStat[stat.ST_SIZE] == mStat[stat.ST_SIZE]:
-                    sys.stdout.write(".")
-                    continue
+        mFilePath = self.getText(self.getValue(imageDict, "ImagePath"))
+        basename = os.path.basename(mFilePath)
+        tFilePath = targetFileDir + "/" + basename
 
-            msg = "copying from:%s to:%s" % (mFilePath, tFilePath)
-            if copyImg:
-                print msg
-                # TODO: try findertools.copy and macostools.copy
-                shutil.copy2(mFilePath, tFilePath)
-            else:
-                print "test - %s" % (msg)
-                
-            if writeMd:
-                caption = getElementText(getValue(imageDict, "Caption"), "")
-                rating = int(getElementText(
-                    getValue(imageDict, "Rating"), "0")
-                )
-                comment = getElementText(getValue(imageDict, "Comment"), "")
-                kwids = getTextList(getValue(imageDict, "Keywords"))
-                keywords = [lookupKeyword(keywordDict, i) for i in kwids]
+        # Skip unchanged files, unless we're writing metadata.
+        mStat = os.stat(mFilePath)
+        if not writeMD and os.path.exists(tFilePath):
+            tStat = os.stat(tFilePath)
+            if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) <= 10 or \
+              tStat[stat.ST_SIZE] == mStat[stat.ST_SIZE]:
+                sys.stdout.write(".")
+                return
 
-                if caption or comment or rating:
-                    print "writing metadata..."
-                    md = pyexiv2.ImageMetadata(tFilePath)
-                    md.read()
-                    md["Iptc.Application2.Headline"] = [caption]
-                    md["Xmp.xmp.Rating"] = rating
-                    md["Iptc.Application2.Caption"] = [comment]
-                    md["Iptc.Application2.Keywords"] = keywords
-                    md.write(preserve_timestamps=True)
+        print "copying from:%s to:%s" % (mFilePath, tFilePath)
+        # TODO: try findertools.copy and macostools.copy
+        shutil.copy2(mFilePath, tFilePath)
+        if writeMD:
+            self.writePhotoMD(imageId, tFilePath)
 
-    albumDataDom.unlink()
+    def writePhotoMD(self, imageId, filePath=None):
+        """
+        Write the metadata from the library for imageId to filePath.
+        If filePath is None, write it to the photo in the library.
+        """
+        imageDict = self.getValue(self.ImageDict, imageId)
+        if not filePath:
+            filePath = self.getText(getValue(imageDict, "ImagePath"))
+        
+        caption = self.getText(self.getValue(imageDict, "Caption"), "")
+        rating = int(self.getText(
+            self.getValue(imageDict, "Rating"), "0")
+        )
+        comment = self.getText(self.getValue(imageDict, "Comment"), "")
+        kwids = self.getTextList(self.getValue(imageDict, "Keywords"))
+        keywords = [self.lookupKeyword(i) for i in kwids]
 
+        if caption or comment or rating:
+            print "writing metadata..."
+            md = pyexiv2.ImageMetadata(filePath)
+            md.read()
+            md["Iptc.Application2.Headline"] = [caption]
+            md["Xmp.xmp.Rating"] = rating
+            md["Iptc.Application2.Caption"] = [comment]
+            md["Iptc.Application2.Keywords"] = keywords
+            md.write(preserve_timestamps=True)
 
-def findChildren(parent, name):
-    result = []
-    for child in parent.childNodes:
-        if child.nodeName == name:
-            result.append(child)
-    return result
+    ### Support methods.
 
-def getElementText(element, default=None):
-    if element is None: return default
-    if len(element.childNodes) == 0: 
-        return None
-    else: 
-        return element.childNodes[0].nodeValue
+    @staticmethod
+    def findChildren(parent, name):
+        result = []
+        for child in parent.childNodes:
+            if child.nodeName == name:
+                result.append(child)
+        return result
 
-def getTextList(element):
-    if element.nodeName != "array":
-        error("Expected 'array', got %s" % element.nodeName)
-    return [getElementText(c) for c in element.childNodes 
-            if c.nodeType == Node.ELEMENT_NODE]
+    @staticmethod
+    def getText(element, default=None):
+        if element is None: return default
+        if len(element.childNodes) == 0: 
+            return None
+        else: 
+            return element.childNodes[0].nodeValue
 
-def getValue(parent, keyName, default=None):
-    for key in findChildren(parent, "key"):
-        if getElementText(key) == keyName:
-            sib = key.nextSibling
-            while(sib is not None and sib.nodeType != Node.ELEMENT_NODE):
-                sib = sib.nextSibling
-            return sib
-    return default
+    def getTextList(self, element):
+        if element.nodeName != "array":
+            error("Expected 'array', got %s" % element.nodeName)
+        return [self.getText(c) for c in element.childNodes 
+                if c.nodeType == Node.ELEMENT_NODE]
 
-_keyword_cache = {}
-def lookupKeyword(keywordDict, keywordId):
-    global _keyword_cache
-    if _keyword_cache.has_key(keywordId):
-        return _keyword_cache[keywordId]
-    keyword = getElementText(getValue(keywordDict, keywordId), "-")
-    _keyword_cache[keywordId] = keyword
-    return keyword
+    def getValue(self, parent, keyName, default=None):
+        for key in self.findChildren(parent, "key"):
+            if self.getText(key) == keyName:
+                sib = key.nextSibling
+                while(sib is not None and sib.nodeType != Node.ELEMENT_NODE):
+                    sib = sib.nextSibling
+                return sib
+        return default
 
-APPLE_BASE = 978307200 # 2001/1/1
-def getAppleTime(value):
-    "Converts a numeric Apple time stamp into a date and time"
-    return datetime.datetime.fromtimestamp(APPLE_BASE + float(value))
+    def lookupKeyword(self, keywordId):
+        if self._keyword_cache.has_key(keywordId):
+            return _keyword_cache[keywordId]
+        keyword = self.getText(
+            self.getValue(self.keywordDict, keywordId), "-"
+        )
+        self._keyword_cache[keywordId] = keyword
+        return keyword
 
+            
 def error(msg):
     sys.stderr.write("ERROR: " + msg + "\n")
     sys.exit(1)
 
 
 if __name__ == '__main__':
-    usage   = """Usage: %prog [options] <AlbumData.xml> <destination dir>"""
-    version = """exportiphoto version %s""" % __version__
+    usage   = "Usage: %prog [options] <iPhoto Library dir> <destination dir>"
+    version = "exportiphoto version %s" % __version__
     option_parser = OptionParser(usage=usage, version=version)
     option_parser.set_defaults(test=False, albums=False, metadata=False)
-
-    option_parser.add_option("-t", "--test",
-                             action="store_true", dest="test",
-                             help="don't copy images; dry run"
-    )
 
     option_parser.add_option("-a", "--albums",
                              action="store_true", dest="albums",
@@ -210,7 +226,10 @@ if __name__ == '__main__':
         )
 
     try:
-        main(args[0], args[1], 
-             not options.test, not options.albums, options.metadata)
+        library = iPhotoLibrary(args[0])
+        def copyImage(imageId, folderName, folderDate):
+            library.copyImage(imageId, folderName, folderDate, 
+                  sys.argv[2], options.metadata)
+        library.walk([copyImage], options.albums)
     except KeyboardInterrupt:
         error("Interrupted by user. Copy may be incomplete.")

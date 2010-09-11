@@ -13,9 +13,8 @@ Usage
 -----
 
 1. Run this:
-        python exportiphoto.py [options] <AlbumData.xml> <destination dir>
+        python exportiphoto.py [options] <iPhoto Library dir> <destination dir>
    Options include:
-        -t, --test       don't copy images; dry run
         -a, --albums     use albums instead of events
         -m, --metadata   write metadata to images
 2. There is no step 2
