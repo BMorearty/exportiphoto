@@ -20,6 +20,9 @@ except ImportError:
 
 # FIXME: use SAX so we don't have to load XML all into memory
 
+class iPhotoLibraryError(Exception):
+    pass
+
 class iPhotoLibrary(object):
     def __init__(self, albumDir):
         print "Parsing..."
@@ -27,11 +30,14 @@ class iPhotoLibrary(object):
         try:
             self._albumDataDom = parse(albumDataXml)
         except IOError, why:
-            return error("Can't parse Album Data: %s" % why[1])
+            raise iPhotoLibraryError, "Can't parse %s: %s" % (
+                albumDataXml, why[1]
+            )
         topDict = \
             self._albumDataDom.documentElement.getElementsByTagName('dict')[0]
         if not topDict:
-            return error("Album Data doesn't appear to be in the right format.")
+            raise iPhotoLibraryError, \
+                "Album Data doesn't appear to be in the right format."
         self.RollList = self.getValue(topDict, "List of Rolls")
         self.AlbumList = self.getValue(topDict, "List of Albums")
         self.keywordDict = self.getValue(topDict, "List of Keywords")
@@ -39,7 +45,10 @@ class iPhotoLibrary(object):
         self._keyword_cache = {}
 
     def __del__(self):
-        self._albumDataDom.unlink()
+        try:
+            self._albumDataDom.unlink()
+        except:
+            pass
 
     APPLE_BASE = 978307200 # 2001/1/1
     def walk(self, funcs, albums=False):
@@ -105,7 +114,8 @@ class iPhotoLibrary(object):
             try:
                 os.makedirs(targetFileDir)
             except OSError, why:
-                error("Can't create directory: %s" % why[1])
+                raise iPhotoLibraryError, \
+                    "Can't create directory: %s" % why[1]
 
         mFilePath = self.getText(self.getValue(imageDict, "ImagePath"))
         basename = os.path.basename(mFilePath)
@@ -173,7 +183,8 @@ class iPhotoLibrary(object):
 
     def getTextList(self, element):
         if element.nodeName != "array":
-            error("Expected 'array', got %s" % element.nodeName)
+            raise iPhotoLibraryError, \
+                "Expected 'array', got %s" % element.nodeName
         return [self.getText(c) for c in element.childNodes 
                 if c.nodeType == Node.ELEMENT_NODE]
 
@@ -231,5 +242,7 @@ if __name__ == '__main__':
             library.copyImage(imageId, folderName, folderDate, 
                   sys.argv[2], options.metadata)
         library.walk([copyImage], options.albums)
+    except iPhotoLibraryError, why:
+        error(why[0])
     except KeyboardInterrupt:
         error("Interrupted by user. Copy may be incomplete.")
