@@ -17,6 +17,7 @@ Usage
    Options include:
         -t, --test       don't copy images; dry run
         -a, --albums     use albums instead of events
+        -m, --metadata   write metadata to images
 2. There is no step 2
 
 Output
@@ -53,3 +54,39 @@ If you set useDate to False in the code, the folder names will be:
     Jun 10, 2009
     Charlie's Birthday Party
     Jun 20, 2009
+
+Writing Metadata
+----------------
+
+If pyexiv2 is installed, exportiphoto can write iPhoto metadata into 
+images as they're exported, with the -m option. Currently, it writes:
+
+ - iPhoto image name to Iptc.Application2.Headline
+ - iPhoto description to Iptc.Application2.Caption
+ - iPhoto keywords to Iptc.Application2.Keywords
+ - iPhoto rating to Xmp.xmp.Rating
+
+See below for information on installing pyexiv2.
+
+Installing pyexiv2
+------------------
+
+Unfortunately, there is no easy way to install pyexiv2, but if you have
+MacPorts <http://macports.org/>, it's relatively simple; follow these steps
+to set up:
+
+    > sudo port install scons
+    > sudo port install exiv2
+    > sudo port install boost +python26
+    
+Then, after downloading Pyexiv2 <http://tilloy.net/dev/pyexiv2/> and changing 
+into its source directory:
+        
+    > sudo CXXFLAGS=-I"/opt/local/include" LDFLAGS="-L/opt/local/lib -lpython2.6" scons install
+    > cd /opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/
+    > sudo mv libexiv2python.dylib libexiv2python.so
+    
+Note that you'll have to use python2.6 to run the script; e.g.,
+
+    > python2.6 exportiphoto ...
+    

@@ -13,9 +13,15 @@ import sys
 from optparse import OptionParser
 from xml.dom.minidom import parse, Node
 
+try:
+    import pyexiv2
+except ImportError:
+    pyexiv2 = None
+
 # FIXME: use SAX so we don't have to load XML all into memory
 
-def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
+def main(albumDataXml, targetDir, 
+         copyImg=True, useEvents=True, writeMd=False):
     print "Parsing..."
     try:
         albumDataDom = parse(albumDataXml)
@@ -25,6 +31,7 @@ def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
     if not topMostDict:
         return error("Album Data doesn't appear to be in the right format.")
     masterImageListDict = getValue(topMostDict, "Master Image List")
+    keywordDict = getValue(topMostDict, "List of Keywords")
 
     if useEvents:
         targetLists = getValue(topMostDict, "List of Rolls")
@@ -87,8 +94,8 @@ def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
 
             tFilePath = targetFileDir + "/" + basename
 
-            # Skip unchanged files
-            if os.path.exists(tFilePath):
+            # Skip unchanged files, unless we're writing metadata.
+            if not writeMd and os.path.exists(tFilePath):
                 tStat = os.stat(tFilePath)
                 if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) <= 10 or \
                   tStat[stat.ST_SIZE] == mStat[stat.ST_SIZE]:
@@ -102,6 +109,25 @@ def main(albumDataXml, targetDir, copyImg=True, useEvents=True):
                 shutil.copy2(mFilePath, tFilePath)
             else:
                 print "test - %s" % (msg)
+                
+            if writeMd:
+                caption = getElementText(getValue(imageDict, "Caption"), "")
+                rating = int(getElementText(
+                    getValue(imageDict, "Rating"), "0")
+                )
+                comment = getElementText(getValue(imageDict, "Comment"), "")
+                kwids = getTextList(getValue(imageDict, "Keywords"))
+                keywords = [lookupKeyword(keywordDict, i) for i in kwids]
+
+                if caption or comment or rating:
+                    print "writing metadata..."
+                    md = pyexiv2.ImageMetadata(tFilePath)
+                    md.read()
+                    md["Iptc.Application2.Headline"] = [caption]
+                    md["Xmp.xmp.Rating"] = rating
+                    md["Iptc.Application2.Caption"] = [comment]
+                    md["Iptc.Application2.Keywords"] = keywords
+                    md.write(preserve_timestamps=True)
 
     albumDataDom.unlink()
 
@@ -113,21 +139,36 @@ def findChildren(parent, name):
             result.append(child)
     return result
 
-def getElementText(element):
-    if element is None: return None
+def getElementText(element, default=None):
+    if element is None: return default
     if len(element.childNodes) == 0: 
         return None
     else: 
         return element.childNodes[0].nodeValue
 
-def getValue(parent, keyName):
+def getTextList(element):
+    if element.nodeName != "array":
+        error("Expected 'array', got %s" % element.nodeName)
+    return [getElementText(c) for c in element.childNodes 
+            if c.nodeType == Node.ELEMENT_NODE]
+
+def getValue(parent, keyName, default=None):
     for key in findChildren(parent, "key"):
         if getElementText(key) == keyName:
             sib = key.nextSibling
             while(sib is not None and sib.nodeType != Node.ELEMENT_NODE):
                 sib = sib.nextSibling
             return sib
-    error("Can't find %s in Album Data." % keyName)
+    return default
+
+_keyword_cache = {}
+def lookupKeyword(keywordDict, keywordId):
+    global _keyword_cache
+    if _keyword_cache.has_key(keywordId):
+        return _keyword_cache[keywordId]
+    keyword = getElementText(getValue(keywordDict, keywordId), "-")
+    _keyword_cache[keywordId] = keyword
+    return keyword
 
 APPLE_BASE = 978307200 # 2001/1/1
 def getAppleTime(value):
@@ -143,7 +184,7 @@ if __name__ == '__main__':
     usage   = """Usage: %prog [options] <AlbumData.xml> <destination dir>"""
     version = """exportiphoto version %s""" % __version__
     option_parser = OptionParser(usage=usage, version=version)
-    option_parser.set_defaults(test=False, albums=False)
+    option_parser.set_defaults(test=False, albums=False, metadata=False)
 
     option_parser.add_option("-t", "--test",
                              action="store_true", dest="test",
@@ -155,6 +196,12 @@ if __name__ == '__main__':
                              help="use albums instead of events"
     )
 
+    if pyexiv2:
+        option_parser.add_option("-m", "--metadata",
+                                 action="store_true", dest="metadata",
+                                 help="write metadata to images"
+        )
+
     (options, args) = option_parser.parse_args()
     
     if len(args) != 2:
@@ -163,6 +210,7 @@ if __name__ == '__main__':
         )
 
     try:
-        main(args[0], args[1], not options.test, not options.albums)
+        main(args[0], args[1], 
+             not options.test, not options.albums, options.metadata)
     except KeyboardInterrupt:
         error("Interrupted by user. Copy may be incomplete.")
