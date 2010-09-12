@@ -329,7 +329,7 @@ if __name__ == '__main__':
         library = iPhotoLibrary(args[0], use_album=options.albums)
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate, 
-                  sys.argv[2], options.metadata)
+                  args[1], options.metadata)
     except iPhotoLibraryError, why:
         error(why[0])
     except KeyboardInterrupt:
