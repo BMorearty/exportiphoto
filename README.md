@@ -40,7 +40,7 @@ Let's say you have the following events in iPhoto--two unnamed and one named:
 
 Run:
 
-    python exportiphoto.py ~/Pictures/iPhoto\ Library/AlbumData.xml ~/Downloads/iPhoto\ Export
+    python exportiphoto.py ~/Pictures/iPhoto\ Library/ ~/iPhoto\ Export
 
 If Charlie's birthday party was on June 15th, the output folders will be:
 
@@ -66,6 +66,14 @@ images as they're exported, with the -m option. Currently, it writes:
  - iPhoto rating to Xmp.xmp.Rating
 
 See below for information on installing pyexiv2.
+
+NOTE: if you see messages like this:
+
+    Error: Directory Canon with 1100 entries considered invalid; not read.
+    
+you can safely ignore them; they indicate a problem reading the metadata
+already in the file. Installing a newer version of pyexiv2 should fix this
+(as of this writing, it's fixed in the repository, but not released).
 
 Installing pyexiv2
 ------------------
