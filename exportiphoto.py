@@ -97,10 +97,19 @@ class iPhotoLibrary(object):
         if dtype == 'string':
             return self.getText(node)
         elif dtype == 'integer':
-            # TODO: catch errors
-            return int(self.getText(node))
+            try:
+                return int(self.getText(node))
+            except ValueError:
+                raise iPhotoLibraryError, \
+                "Corrupted Library; unexpected value '%s' for integer" % \
+                    self.getText(node) 
         elif dtype == 'real':
-            return float(self.getText(node))
+            try:
+                return float(self.getText(node))
+            except ValueError:
+                raise iPhotoLibraryError, \
+                "Corrupted Library; unexpected value '%s' for real" % \
+                    self.getText(node) 
         elif dtype == 'array':
             return [self.dePlist(c) for c in node.childNodes \
                     if c.nodeType == Node.ELEMENT_NODE]
@@ -155,12 +164,17 @@ class iPhotoLibrary(object):
             targetName = "AlbumName"
         else:
             targetName = "RollName"
+        i = 0
         for folder in self.albums:
+            i += 1
             folderName = folder[targetName]
             folderDate = self.appleDate(folder["RollDateAsTimerInterval"])
             images = folder["KeyList"]
-            self.status("* Processing: %s (%i images)...\n" % (
-                folderName, len(images)
+            self.status("* Processing %i of %i: %s (%i images)...\n" % (
+                i,
+                len(self.albums),
+                folderName, 
+                len(images)
             ))
             for imageId in images:
                 for func in funcs:
@@ -265,7 +279,11 @@ class iPhotoLibrary(object):
         return False
 
     def appleDate(self, text):
-        return datetime.utcfromtimestamp(self.apple_epoch + float(text))
+        try:
+            return datetime.utcfromtimestamp(self.apple_epoch + float(text))
+        except (ValueError, TypeError):
+            raise iPhotoLibraryError, \
+            "Corrupted Library; unexpected value '%s' for date" % text
 
     def status(self, msg):
         if not self.quiet:
