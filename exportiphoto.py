@@ -162,17 +162,23 @@ class iPhotoLibrary(object):
         """
         if self.use_album:
             targetName = "AlbumName"
+            albums = [a for a in self.albums if 
+                      a.get("Album Type", None) == "Regular"]
         else:
             targetName = "RollName"
+            albums = self.albums
         i = 0
-        for folder in self.albums:
+        for folder in albums:
             i += 1
             folderName = folder[targetName]
-            folderDate = self.appleDate(folder["RollDateAsTimerInterval"])
+            if self.use_album:
+                folderDate = None
+            else: 
+                folderDate = self.appleDate(folder["RollDateAsTimerInterval"])
             images = folder["KeyList"]
             self.status("* Processing %i of %i: %s (%i images)...\n" % (
                 i,
-                len(self.albums),
+                len(albums),
                 folderName, 
                 len(images)
             ))
