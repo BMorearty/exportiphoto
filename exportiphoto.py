@@ -3,62 +3,144 @@
 
 __version__ = "0.6"
 
-import datetime
+import base64
 import os
 import re
 import shutil
 import stat
 import sys
 
+from datetime import datetime
 from optparse import OptionParser
-from xml.dom.minidom import parse, Node
+from xml.dom.pulldom import START_ELEMENT, END_ELEMENT, parse
+from xml.dom.minidom import Node
 
 try:
     import pyexiv2
 except ImportError:
     pyexiv2 = None
 
-# FIXME: use SAX or pulldom so we don't have to load XML all into memory
-
 class iPhotoLibraryError(Exception):
     pass
 
 class iPhotoLibrary(object):
-    def __init__(self, albumDir, quiet=False):
+    def __init__(self, albumDir, use_album=False, quiet=False):
         self.quiet = quiet
+        self.use_album = use_album
+        self.albums = []
+        self.keywords = {}
+        self.images = {}
         albumDataXml = os.path.join(albumDir, "AlbumData.xml")
-        self.status("Parsing iPhoto Library data... ")
-        try:
-            self._albumDataDom = parse(albumDataXml)
-        except IOError, why:
-            raise iPhotoLibraryError, "Can't parse %s: %s" % (
-                albumDataXml, why[1]
-            )
+        self.status("* Parsing iPhoto Library data... ")
+        self.parseAlbumData(albumDataXml)
         self.status("Done.\n")
-        topDict = \
-            self._albumDataDom.documentElement.getElementsByTagName('dict')[0]
-        if not topDict:
-            raise iPhotoLibraryError, \
-                "AlbumData.xml doesn't appear to be in the right format."
-        self.RollList = self.getValue(topDict, "List of Rolls")
-        self.AlbumList = self.getValue(topDict, "List of Albums")
-        self.keywordDict = self.getValue(topDict, "List of Keywords")
-        self.ImageDict = self.getValue(topDict, "Master Image List")
-        self._keyword_cache = {}
 
-    def __del__(self):
-        try:
-            self._albumDataDom.unlink()
-        except:
-            pass
+    interesting_image_keys = [
+        'ImagePath', 'Rating', 'Keywords', 'Caption', 'Comment'
+    ]
+    apple_epoch = 978307200
+    
+    def parseAlbumData(self, filename):
+        """
+        Parse an iPhoto AlbumData.xml file, keeping the interesting 
+        bits.
+        """
+        doc = parse(filename)
+        stack = []
+        last_top_key = None
+        if self.use_album:
+            album_list_key = "List of Albums"
+        else:
+            album_list_key = "List of Rolls"
+        for event, node in doc:
+            if event == START_ELEMENT:
+                stack.append(node)
+                level = len(stack)
+                if level == 3:
+                    if node.nodeName == 'key':
+                        doc.expandNode(node)
+                        last_top_key = self.getText(node)
+                        stack.pop()
+                    elif last_top_key == 'List of Keywords':
+                        doc.expandNode(node)
+                        self.keywords = self.dePlist(node)
+                        stack.pop()
+                elif level == 4:
+                    # process large items individually so we don't
+                    # load them all into memory.
+                    if last_top_key == album_list_key:
+                        doc.expandNode(node)
+                        self.albums.append(self.dePlist(node))
+                        stack.pop()
+                    elif last_top_key == 'Master Image List':
+                        doc.expandNode(node)
+                        if node.nodeName == 'key':
+                            last_image_key = self.getText(node)
+                        else:
+                            self.images[last_image_key] = self.dePlist(
+                                node, self.interesting_image_keys
+                            )
+                        stack.pop()                        
+            elif event == END_ELEMENT:
+                stack.pop()
 
-    def status(self, msg):
-        if not self.quiet:
-            sys.stdout.write(msg)
-            sys.stdout.flush()
+    def dePlist(self, node, interesting_keys=None):
+        """
+        Given a DOM node, convert the plist (fragment) it refers to and
+        return the corresponding Python data structure. 
+    
+        If interesting_keys is a list, "dict" keys will be filtered so that
+        only those nominated are returned (for ALL descendant dicts). Numeric
+        keys aren't filtered.
+        """
+        dtype = node.nodeName
+        if dtype == 'string':
+            return self.getText(node)
+        elif dtype == 'integer':
+            # TODO: catch errors
+            return int(self.getText(node))
+        elif dtype == 'real':
+            return float(self.getText(node))
+        elif dtype == 'array':
+            return [self.dePlist(c) for c in node.childNodes \
+                    if c.nodeType == Node.ELEMENT_NODE]
+        elif dtype == 'dict':
+            d = {}
+            last_key = None
+            for c in node.childNodes:
+                if c.nodeType != Node.ELEMENT_NODE:
+                    continue
+                # TODO: catch out-of-order keys/values
+                if c.nodeName == 'key':
+                    last_key = self.getText(c)
+                elif not interesting_keys or last_key in interesting_keys:
+                    if interesting_keys: # check to see if we're interested
+                        if last_key not in interesting_keys \
+                          and not last_key.isdigit():
+                            continue # nope.
+                    d[intern(str(last_key))] = self.dePlist(c)
+            return d
+        elif dtype == 'true':
+            return True
+        elif dtype == 'false':
+            return False
+        elif dtype == 'data':
+            return base64.decodestring(self.getText(c))
+        elif dtype == 'date':
+            return self.appleDate(self.getText(c))
+        else:
+            raise Exception, "Don't know what a %s is." % dtype
 
-    APPLE_BASE = 978307200 # 2001/1/1
-    def walk(self, funcs, albums=False):
+    @staticmethod
+    def getText(element, default=None):
+        if element is None: 
+            return default
+        if len(element.childNodes) == 0: 
+            return None
+        else: 
+            return "".join([n.nodeValue for n in element.childNodes])
+            
+    def walk(self, funcs):
         """
         Walk through the events or albums (depending on the value of albums)
         in this library and apply each function in the list funcs to each 
@@ -69,29 +151,18 @@ class iPhotoLibrary(object):
          - folderDate is the date of the folder, and
          - imageId is the string identifier for the image.
         """
-        if albums:
-            targetList = self.AlbumList
+        if self.use_album:
             targetName = "AlbumName"
         else:
-            targetList = self.RollList
             targetName = "RollName"
-        for folderDict in self.findChildren(targetList, 'dict'):
-            folderName = self.getText(self.getValue(folderDict, targetName))
-            folderDate = datetime.datetime.fromtimestamp(
-                       self.APPLE_BASE 
-                       + float(self.getText(
-                          self.getValue(folderDict, "RollDateAsTimerInterval")
-                         ))
-            )
-            images = self.findChildren(
-                self.getValue(folderDict, "KeyList"),
-                'string'
-            )
-            self.status("Processing: %s (%i images)...\n" % (
+        for folder in self.albums:
+            folderName = folder[targetName]
+            folderDate = self.appleDate(folder["RollDateAsTimerInterval"])
+            images = folder["KeyList"]
+            self.status("* Processing: %s (%i images)...\n" % (
                 folderName, len(images)
             ))
-            for image in images:
-                imageId = self.getText(image)
+            for imageId in images:
                 for func in funcs:
                     func(imageId, folderName, folderDate)
             self.status("\n")
@@ -106,7 +177,10 @@ class iPhotoLibrary(object):
         If writeMD is True, also write the image metadata from the library
         to the copy.
         """
-        imageDict = self.getValue(self.ImageDict, imageId)
+        try:
+            image = self.images[imageId]
+        except KeyError:
+            raise iPhotoLibraryError, "Can't find image #%s" % imageId            
 
         if folderDate:
             date = '%(year)d-%(month)02d-%(day)02d' % {
@@ -123,14 +197,14 @@ class iPhotoLibrary(object):
         targetFileDir = targetDir + "/" + outputPath        
 
         if not os.path.exists(targetFileDir):
-            self.status("Creating %s\n" % targetFileDir)
+            self.status("  Creating %s\n" % targetFileDir)
             try:
                 os.makedirs(targetFileDir)
             except OSError, why:
                 raise iPhotoLibraryError, \
                     "Can't create: %s" % why[1]
 
-        mFilePath = self.getText(self.getValue(imageDict, "ImagePath"))
+        mFilePath = image["ImagePath"]
         basename = os.path.basename(mFilePath)
         tFilePath = targetFileDir + "/" + basename
 
@@ -153,71 +227,44 @@ class iPhotoLibrary(object):
         Write the metadata from the library for imageId to filePath.
         If filePath is None, write it to the photo in the library.
         """
-        imageDict = self.getValue(self.ImageDict, imageId)
+        try:
+            image = self.images[imageId]
+        except KeyError:
+            raise iPhotoLibraryError, "Can't find image #%s" % imageId
         if not filePath:
-            filePath = self.getText(getValue(imageDict, "ImagePath"))
-        
-        caption = self.getText(self.getValue(imageDict, "Caption"), "")
-        rating = int(self.getText(
-            self.getValue(imageDict, "Rating"), "0")
-        )
-        comment = self.getText(self.getValue(imageDict, "Comment"), "")
-        kwids = self.getTextList(self.getValue(imageDict, "Keywords"))
-        keywords = [self.lookupKeyword(i) for i in kwids]
+            filePath = image['ImagePath']
+            
+        caption = image.get("Caption", None)
+        rating = image.get("Rating", None)
+        comment = image.get("Comment", None)
+        keywords = [self.keywords[k] for k in image.get("Keywords", [])]
 
-        if caption or comment or rating:
+        if caption or comment or rating or keywords:
             self.status("+")
-            md = pyexiv2.ImageMetadata(filePath)
-            md.read()
-            md["Iptc.Application2.Headline"] = [caption]
-            md["Xmp.xmp.Rating"] = rating
-            md["Iptc.Application2.Caption"] = [comment]
-            md["Iptc.Application2.Keywords"] = keywords
-            md.write(preserve_timestamps=True)
+            try:
+                md = pyexiv2.ImageMetadata(filePath)
+                md.read()
+                if caption:
+                    md["Iptc.Application2.Headline"] = [caption]
+                if rating:
+                    md["Xmp.xmp.Rating"] = rating
+                if comment:
+                    md["Iptc.Application2.Caption"] = [comment]
+                if keywords:
+                    md["Iptc.Application2.Keywords"] = keywords
+                md.write(preserve_timestamps=True)
+            except IOError, why:
+                self.status("\nProblem setting metadata (%s) on %s\n" % (
+                    why, filePath
+                ))
 
-    ### Support methods.
+    def appleDate(self, text):
+        return datetime.utcfromtimestamp(self.apple_epoch + float(text))
 
-    @staticmethod
-    def findChildren(parent, name):
-        result = []
-        for child in parent.childNodes:
-            if child.nodeName == name:
-                result.append(child)
-        return result
-
-    @staticmethod
-    def getText(element, default=None):
-        if element is None: return default
-        if len(element.childNodes) == 0: 
-            return None
-        else: 
-            return element.childNodes[0].nodeValue
-
-    def getTextList(self, element):
-        if element.nodeName != "array":
-            raise iPhotoLibraryError, \
-                "Expected 'array', got %s" % element.nodeName
-        return [self.getText(c) for c in element.childNodes 
-                if c.nodeType == Node.ELEMENT_NODE]
-
-    def getValue(self, parent, keyName, default=None):
-        for key in self.findChildren(parent, "key"):
-            if self.getText(key) == keyName:
-                sib = key.nextSibling
-                while(sib is not None and sib.nodeType != Node.ELEMENT_NODE):
-                    sib = sib.nextSibling
-                return sib
-        return default
-
-    def lookupKeyword(self, keywordId):
-        if self._keyword_cache.has_key(keywordId):
-            return _keyword_cache[keywordId]
-        keyword = self.getText(
-            self.getValue(self.keywordDict, keywordId), "-"
-        )
-        self._keyword_cache[keywordId] = keyword
-        return keyword
-
+    def status(self, msg):
+        if not self.quiet:
+            sys.stdout.write(msg)
+            sys.stdout.flush()
             
 def error(msg):
     sys.stderr.write("\n%s\n" % msg)
@@ -249,7 +296,7 @@ if __name__ == '__main__':
         )
 
     try:
-        library = iPhotoLibrary(args[0])
+        library = iPhotoLibrary(args[0], use_album=options.albums)
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate, 
                   sys.argv[2], options.metadata)
@@ -258,7 +305,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         error("Interrupted.")
     try:    
-        library.walk([copyImage], options.albums)
+        library.walk([copyImage])
     except iPhotoLibraryError, why:
         error(why[0])
     except KeyboardInterrupt:
