@@ -35,6 +35,8 @@ class iPhotoLibrary(object):
         self.parseAlbumData(albumDataXml)
         self.status("Done.\n")
 
+    major_version = 2
+    minor_version = 0
     interesting_image_keys = [
         'ImagePath', 'Rating', 'Keywords', 'Caption', 'Comment'
     ]
@@ -65,6 +67,23 @@ class iPhotoLibrary(object):
                         doc.expandNode(node)
                         self.keywords = self.dePlist(node)
                         stack.pop()
+                    elif last_top_key == 'Major Version':
+                        doc.expandNode(node)
+                        major_version = self.dePlist(node)
+                        stack.pop()
+                        if major_version != self.major_version:
+                            raise iPhotoLibraryError, \
+                            "Sorry, I can't understand version %i iPhoto Libraries." % major_version
+                    elif last_top_key == 'Minor Version':
+                        doc.expandNode(node)
+                        minor_version = self.dePlist(node)
+                        stack.pop()
+                        if minor_version > self.minor_version:
+                            self.status(
+                                "\nI don't recognise iPhoto libraries when the minor version is %i, but let's try anyway.\n" % minor_version, 
+                                force=True
+                            )
+
                 elif level == 4:
                     # process large items individually so we don't
                     # load them all into memory.
@@ -291,8 +310,8 @@ class iPhotoLibrary(object):
             raise iPhotoLibraryError, \
             "Corrupted Library; unexpected value '%s' for date" % text
 
-    def status(self, msg):
-        if not self.quiet:
+    def status(self, msg, force=False):
+        if force or not self.quiet:
             sys.stdout.write(msg)
             sys.stdout.flush()
             
