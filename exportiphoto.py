@@ -216,11 +216,16 @@ class iPhotoLibrary(object):
               tStat[stat.ST_SIZE] == mStat[stat.ST_SIZE]:
                 return
 
-        self.status(".")
         # TODO: try findertools.copy and macostools.copy
         shutil.copy2(mFilePath, tFilePath)
+        md_written = False
         if writeMD:
-            self.writePhotoMD(imageId, tFilePath)
+            md_written = self.writePhotoMD(imageId, tFilePath)
+        if md_written:
+            self.status("+")
+        else:
+            self.status(".")
+
 
     def writePhotoMD(self, imageId, filePath=None):
         """
@@ -240,7 +245,6 @@ class iPhotoLibrary(object):
         keywords = [self.keywords[k] for k in image.get("Keywords", [])]
 
         if caption or comment or rating or keywords:
-            self.status("+")
             try:
                 md = pyexiv2.ImageMetadata(filePath)
                 md.read()
@@ -253,10 +257,12 @@ class iPhotoLibrary(object):
                 if keywords:
                     md["Iptc.Application2.Keywords"] = keywords
                 md.write(preserve_timestamps=True)
+                return True
             except IOError, why:
                 self.status("\nProblem setting metadata (%s) on %s\n" % (
                     why, filePath
                 ))
+        return False
 
     def appleDate(self, text):
         return datetime.utcfromtimestamp(self.apple_epoch + float(text))
