@@ -1,7 +1,11 @@
 exportiphoto
 ============
 
-Exports an iPhoto library to a folder structure.
+Exports an iPhoto library to a folder structure, optionally writing
+metadata to the copies.
+
+This script has been tested with iPhoto 8.1.2 (from iLife '09); other versions
+may or may not work.
 
 Originally written by Derrick Childers and 
 [posted to macosxhints](http://www.macosxhints.com/article.php?story=20081108132735425).
@@ -19,11 +23,14 @@ Usage
         -m, --metadata   write metadata to images
 2. There is no step 2
 
+note that the -m flag is only available if extra libraries are installed; 
+see below.
+
 Output
 ------
 
-By default, exportiphoto exports Events.  It can also export Albums if you want.  (Use
-the -a option on the command line).
+By default, exportiphoto exports Events.  It can export Albums instead; use
+the -a option on the command line.
 
 It creates a separate folder on disk for each event.  Every folder is prefixed
 by the event date in this format: yyyy-mm-dd (because this format is sortable by name).
