@@ -154,8 +154,8 @@ class iPhotoLibrary(object):
                 else: # value
                     if interesting_keys: # check to see if we're interested
                         if last_key not in interesting_keys \
-                           and not last_key.isdigit():
-                             continue # nope.
+                          and not last_key.isdigit():
+                            continue # nope.
                     d[intern(str(last_key))] = self.dePlist(c, ik)
             return d
         elif dtype == 'true':
