@@ -243,7 +243,7 @@ class iPhotoLibrary(object):
                 outputPath = date + " " + folderName
         else:
             outputPath = folderName
-        targetFileDir = targetDir + "/" + outputPath        
+        targetFileDir = os.path.join(targetDir, outputPath)
 
         if not os.path.exists(targetFileDir):
             self.status("  Creating %s\n" % targetFileDir)
@@ -255,7 +255,7 @@ class iPhotoLibrary(object):
 
         mFilePath = image["ImagePath"]
         basename = os.path.basename(mFilePath)
-        tFilePath = targetFileDir + "/" + basename
+        tFilePath = os.path.join(targetFileDir, basename)
 
         # Skip unchanged files, unless we're writing metadata.
         if not writeMD and os.path.exists(tFilePath):
