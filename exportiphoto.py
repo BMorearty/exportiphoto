@@ -266,7 +266,6 @@ class iPhotoLibrary(object):
                 self.status("-")
                 return
 
-        # TODO: try findertools.copy and macostools.copy
         shutil.copy2(mFilePath, tFilePath)
         md_written = False
         if writeMD:
