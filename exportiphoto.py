@@ -25,10 +25,11 @@ class iPhotoLibraryError(Exception):
 
 class iPhotoLibrary(object):
     def __init__(self, albumDir, use_album=False, quiet=False):
-        self.quiet = quiet
         self.use_album = use_album
+        self.quiet = quiet
         self.albums = []
         self.keywords = {}
+        self.faces = {}
         self.images = {}
         albumDataXml = os.path.join(albumDir, "AlbumData.xml")
         self.status("* Parsing iPhoto Library data... ")
@@ -38,7 +39,8 @@ class iPhotoLibrary(object):
     major_version = 2
     minor_version = 0
     interesting_image_keys = [
-        'ImagePath', 'Rating', 'Keywords', 'Caption', 'Comment'
+        'ImagePath', 'Rating', 'Keywords', 'Caption', 'Comment', 'Faces',
+        'face key'
     ]
     apple_epoch = 978307200
     
@@ -67,6 +69,13 @@ class iPhotoLibrary(object):
                         doc.expandNode(node)
                         self.keywords = self.dePlist(node)
                         stack.pop()
+                    elif last_top_key == 'List of Faces':
+                        doc.expandNode(node)
+                        self.faces = dict([
+                            (k, v['name']) for k,v in 
+                             self.dePlist(node, ['name']).items()
+                        ])
+                        stack.pop()                        
                     elif last_top_key == 'Major Version':
                         doc.expandNode(node)
                         major_version = self.dePlist(node)
@@ -112,6 +121,7 @@ class iPhotoLibrary(object):
         only those nominated are returned (for ALL descendant dicts). Numeric
         keys aren't filtered.
         """
+        ik = interesting_keys
         dtype = node.nodeName
         if dtype == 'string':
             return self.getText(node)
@@ -130,7 +140,7 @@ class iPhotoLibrary(object):
                 "Corrupted Library; unexpected value '%s' for real" % \
                     self.getText(node) 
         elif dtype == 'array':
-            return [self.dePlist(c) for c in node.childNodes \
+            return [self.dePlist(c, ik) for c in node.childNodes \
                     if c.nodeType == Node.ELEMENT_NODE]
         elif dtype == 'dict':
             d = {}
@@ -141,12 +151,12 @@ class iPhotoLibrary(object):
                 # TODO: catch out-of-order keys/values
                 if c.nodeName == 'key':
                     last_key = self.getText(c)
-                elif not interesting_keys or last_key in interesting_keys:
+                else: # value
                     if interesting_keys: # check to see if we're interested
                         if last_key not in interesting_keys \
-                          and not last_key.isdigit():
-                            continue # nope.
-                    d[intern(str(last_key))] = self.dePlist(c)
+                           and not last_key.isdigit():
+                             continue # nope.
+                    d[intern(str(last_key))] = self.dePlist(c, ik)
             return d
         elif dtype == 'true':
             return True
@@ -207,14 +217,14 @@ class iPhotoLibrary(object):
             self.status("\n")
 
     def copyImage(self, imageId, folderName, folderDate, 
-                  targetDir, writeMD=False):
+                  targetDir, writeMD=False, tagFaces=False):
         """
         Copy an image from the library to a folder in the targetDir. The
         name of the folder is based on folderName and folderDate; if
         folderDate is None, it's only based upon the folderName.
         
         If writeMD is True, also write the image metadata from the library
-        to the copy.
+        to the copy. If tagFaces is True, faces will be saved as keywords.
         """
         try:
             image = self.images[imageId]
@@ -259,17 +269,19 @@ class iPhotoLibrary(object):
         shutil.copy2(mFilePath, tFilePath)
         md_written = False
         if writeMD:
-            md_written = self.writePhotoMD(imageId, tFilePath)
+            md_written = self.writePhotoMD(imageId, tFilePath, tagFaces)
         if md_written:
             self.status("+")
         else:
             self.status(".")
 
 
-    def writePhotoMD(self, imageId, filePath=None):
+    def writePhotoMD(self, imageId, filePath=None, tagFaces=False):
         """
         Write the metadata from the library for imageId to filePath.
         If filePath is None, write it to the photo in the library.
+        If tagFaces is True, iPhoto face names will be written to 
+        keywords.
         """
         try:
             image = self.images[imageId]
@@ -281,7 +293,12 @@ class iPhotoLibrary(object):
         caption = image.get("Caption", None)
         rating = image.get("Rating", None)
         comment = image.get("Comment", None)
-        keywords = [self.keywords[k] for k in image.get("Keywords", [])]
+        keywords = set([self.keywords[k] for k in image.get("Keywords", [])])
+        if tagFaces:
+            keywords.update([self.faces[f['face key']] 
+                             for f in image.get("Faces", [])
+                             if self.faces.has_key(f['face key'])]
+            )
 
         if caption or comment or rating or keywords:
             try:
@@ -294,7 +311,7 @@ class iPhotoLibrary(object):
                 if comment:
                     md["Iptc.Application2.Caption"] = [comment]
                 if keywords:
-                    md["Iptc.Application2.Keywords"] = keywords
+                    md["Iptc.Application2.Keywords"] = list(keywords)
                 md.write(preserve_timestamps=True)
                 return True
             except IOError, why:
@@ -324,7 +341,12 @@ if __name__ == '__main__':
     usage   = "Usage: %prog [options] <iPhoto Library dir> <destination dir>"
     version = "exportiphoto version %s" % __version__
     option_parser = OptionParser(usage=usage, version=version)
-    option_parser.set_defaults(test=False, albums=False, metadata=False)
+    option_parser.set_defaults(
+        test=False, 
+        albums=False, 
+        metadata=False,
+        faces=False
+    )
 
     option_parser.add_option("-a", "--albums",
                              action="store_true", dest="albums",
@@ -335,6 +357,11 @@ if __name__ == '__main__':
         option_parser.add_option("-m", "--metadata",
                                  action="store_true", dest="metadata",
                                  help="write metadata to images"
+        )
+        
+        option_parser.add_option("-f", "--faces", 
+                                 action="store_true", dest="faces",
+                                 help="store faces as keywords (requires -m)"
         )
 
     (options, args) = option_parser.parse_args()
@@ -348,7 +375,7 @@ if __name__ == '__main__':
         library = iPhotoLibrary(args[0], use_album=options.albums)
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate, 
-                  args[1], options.metadata)
+                  args[1], options.metadata, options.faces)
     except iPhotoLibraryError, why:
         error(why[0])
     except KeyboardInterrupt:

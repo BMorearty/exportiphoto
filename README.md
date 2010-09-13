@@ -19,8 +19,9 @@ Usage
 1. Run this:
         python exportiphoto.py [options] <iPhoto Library dir> <destination dir>
    Options include:
-        -a, --albums     use albums instead of events
-        -m, --metadata   write metadata to images
+        -a, --albums    use albums instead of events
+        -m, --metadata  write metadata to images
+        -f, --faces     store faces as keywords (requires -m)
 2. There is no step 2
 
 note that the -m flag is only available if extra libraries are installed; 
