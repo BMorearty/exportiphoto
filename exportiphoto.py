@@ -258,8 +258,8 @@ class iPhotoLibrary(object):
         tFilePath = targetFileDir + "/" + basename
 
         # Skip unchanged files, unless we're writing metadata.
-        mStat = os.stat(mFilePath)
         if not writeMD and os.path.exists(tFilePath):
+            mStat = os.stat(mFilePath)
             tStat = os.stat(tFilePath)
             if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) <= 10 or \
               tStat[stat.ST_SIZE] == mStat[stat.ST_SIZE]:
