@@ -263,6 +263,7 @@ class iPhotoLibrary(object):
             tStat = os.stat(tFilePath)
             if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) <= 10 or \
               tStat[stat.ST_SIZE] == mStat[stat.ST_SIZE]:
+                self.status("-")
                 return
 
         # TODO: try findertools.copy and macostools.copy
