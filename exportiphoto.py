@@ -246,12 +246,12 @@ class iPhotoLibrary(object):
         targetFileDir = os.path.join(targetDir, outputPath)
 
         if not os.path.exists(targetFileDir):
-            self.status("  Creating %s\n" % targetFileDir)
             try:
                 os.makedirs(targetFileDir)
             except OSError, why:
                 raise iPhotoLibraryError, \
-                    "Can't create: %s" % why[1]
+                    "Can't create %s: %s" % (targetFileDir, why[1])
+            self.status("  Created %s\n" % targetFileDir)
 
         mFilePath = image["ImagePath"]
         basename = os.path.basename(mFilePath)
