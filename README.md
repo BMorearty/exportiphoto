@@ -11,7 +11,8 @@ Originally written by Derrick Childers and
 [posted to macosxhints](http://www.macosxhints.com/article.php?story=20081108132735425).
 Modifications by Guillaume Boudreau, 
 [Brian Morearty](http://github.com/BMorearty), and
-[Mark Nottingham](http://github.com/mnot).
+[Mark Nottingham](http://github.com/mnot),
+[Duoglas Du](http://github.com/duoglas).
 
 Usage
 -----
@@ -22,10 +23,14 @@ Usage
         -a, --albums    use albums instead of events
         -m, --metadata  write metadata to images
         -f, --faces     store faces as keywords (requires -m)
+	-q, --quiet	use quiet mode
+	-d, --date	stop use date prefix in folder name
 2. There is no step 2
 
 note that the -m flag is only available if extra libraries are installed; 
 see below.
+
+if you are facing encoding problems like "UnicodeEncodeError", try -q flag to stop the console output;
 
 Output
 ------
@@ -56,7 +61,7 @@ If Charlie's birthday party was on June 15th, the output folders will be:
     2009-06-15 Charlie's Birthday Party
     2009-06-20
 
-If you set useDate to False in the code, the folder names will be:
+If you set useDate to False by use -d option , the folder names will be:
 
     Jun 10, 2009
     Charlie's Birthday Party
