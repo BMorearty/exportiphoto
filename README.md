@@ -9,9 +9,10 @@ may or may not work.
 
 Originally written by Derrick Childers and 
 [posted to macosxhints](http://www.macosxhints.com/article.php?story=20081108132735425).
-Modifications by Guillaume Boudreau, 
-[Brian Morearty](http://github.com/BMorearty), and
-[Mark Nottingham](http://github.com/mnot).
+Modifications by Guillaume Boudreau,
+[Brian Morearty](http://github.com/BMorearty),
+[Mark Nottingham](http://github.com/mnot) and
+[Avinash Meetoo](http://github.com/avinash)
 
 Usage
 -----
@@ -97,7 +98,9 @@ to set up:
 Then, after downloading Pyexiv2 <http://tilloy.net/dev/pyexiv2/> and changing 
 into its source directory:
         
-    > sudo CXXFLAGS=-I"/opt/local/include" LDFLAGS="-L/opt/local/lib -lpython2.6" scons install
+    > export CXXFLAGS="-I/opt/local/include"
+    > export LDFLAGS="-L/opt/local/lib -lpython2.6"
+    > sudo scons install
     > cd /opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/
     > sudo mv libexiv2python.dylib libexiv2python.so
     

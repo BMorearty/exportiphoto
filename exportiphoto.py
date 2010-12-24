@@ -4,6 +4,8 @@
 __version__ = "0.6"
 
 import base64
+import codecs
+import locale
 import os
 import re
 import shutil
@@ -19,6 +21,11 @@ try:
     import pyexiv2
 except ImportError:
     pyexiv2 = None
+
+# To allow Unicode characters to be displayed
+# (see http://wiki.python.org/moin/PrintFails)
+sys.stdout = codecs.getwriter(locale.getpreferredencoding())(sys.stdout)
+sys.stderr = codecs.getwriter(locale.getpreferredencoding())(sys.stderr)
 
 class iPhotoLibraryError(Exception):
     pass
