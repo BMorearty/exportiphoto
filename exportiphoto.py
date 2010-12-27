@@ -224,7 +224,7 @@ class iPhotoLibrary(object):
             self.status("\n")
 
     def copyImage(self, imageId, folderName, folderDate, 
-                  targetDir, writeMD=False, tagFaces=False):
+                  targetDir, writeMD=False, tagFaces=False, useDate=True):
         """
         Copy an image from the library to a folder in the targetDir. The
         name of the folder is based on folderName and folderDate; if
@@ -238,7 +238,7 @@ class iPhotoLibrary(object):
         except KeyError:
             raise iPhotoLibraryError, "Can't find image #%s" % imageId            
 
-        if folderDate:
+        if folderDate and useDate:
             date = '%(year)d-%(month)02d-%(day)02d' % {
                 'year': folderDate.year,
                 'month': folderDate.month,
@@ -352,14 +352,26 @@ if __name__ == '__main__':
         test=False, 
         albums=False, 
         metadata=False,
-        faces=False
+        faces=False,
+        quiet=False,
+        date=True
     )
-
+    
     option_parser.add_option("-a", "--albums",
                              action="store_true", dest="albums",
                              help="use albums instead of events"
     )
-
+     
+    option_parser.add_option("-q", "--quiet",
+                             action="store_true", dest="quiet",
+                             help="use quiet mode"
+    )
+    
+    option_parser.add_option("-d", "--date",
+                             action="store_false", dest="date",
+                             help="stop use date prefix in folder name"
+    )
+    
     if pyexiv2:
         option_parser.add_option("-m", "--metadata",
                                  action="store_true", dest="metadata",
@@ -370,19 +382,19 @@ if __name__ == '__main__':
                                  action="store_true", dest="faces",
                                  help="store faces as keywords (requires -m)"
         )
-
+    
     (options, args) = option_parser.parse_args()
     
     if len(args) != 2:
         option_parser.error(
             "Please specify an iPhoto library and a destination."
         )
-
+    
     try:
-        library = iPhotoLibrary(args[0], use_album=options.albums)
+        library = iPhotoLibrary(args[0], use_album=options.albums, quiet=options.quiet)
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate, 
-                  args[1], options.metadata, options.faces)
+                  args[1], writeMD=options.metadata, tagFaces=options.faces, useDate=options.date)
     except iPhotoLibraryError, why:
         error(why[0])
     except KeyboardInterrupt:
