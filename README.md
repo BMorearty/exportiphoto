@@ -25,7 +25,7 @@ Usage
         -m, --metadata  write metadata to images
         -f, --faces     store faces as keywords (requires -m)
 	-q, --quiet	use quiet mode
-	-d, --date	stop use date prefix in folder name
+	-d, --date	stop using date prefix in folder name
 2. There is no step 2
 
 note that the -m flag is only available if extra libraries are installed; 
@@ -40,7 +40,8 @@ By default, exportiphoto exports Events.  It can export Albums instead; use
 the -a option on the command line.
 
 It creates a separate folder on disk for each event.  Every folder is prefixed
-by the event date in this format: yyyy-mm-dd (because this format is sortable by name).
+by the event date in this format: yyyy-mm-dd (because this format is sortable by name)
+unless you use the -d option.  
 If the event has a name it is appended to the end of the folder name.
 
 Example
@@ -62,7 +63,7 @@ If Charlie's birthday party was on June 15th, the output folders will be:
     2009-06-15 Charlie's Birthday Party
     2009-06-20
 
-If you set useDate to False by use -d option , the folder names will be:
+If you set the -d option to turn off the prepended date, the folder names will be:
 
     Jun 10, 2009
     Charlie's Birthday Party
