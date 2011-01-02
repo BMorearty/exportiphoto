@@ -24,7 +24,7 @@ Usage
         -a, --albums    use albums instead of events
         -m, --metadata  write metadata to images
         -f, --faces     store faces as keywords (requires -m)
-        -q, --quiet	use quiet mode
+        -q, --quiet     use quiet mode
         -d, --date      stop using date prefix in folder name
 2. There is no step 2
 
