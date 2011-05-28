@@ -50,10 +50,10 @@ class iPhotoLibrary(object):
         'face key'
     ]
     apple_epoch = 978307200
-    
+
     def parseAlbumData(self, filename):
         """
-        Parse an iPhoto AlbumData.xml file, keeping the interesting 
+        Parse an iPhoto AlbumData.xml file, keeping the interesting
         bits.
         """
         doc = parse(filename)
@@ -79,10 +79,10 @@ class iPhotoLibrary(object):
                     elif last_top_key == 'List of Faces':
                         doc.expandNode(node)
                         self.faces = dict([
-                            (k, v['name']) for k,v in 
+                            (k, v['name']) for k,v in
                              self.dePlist(node, ['name']).items()
                         ])
-                        stack.pop()                        
+                        stack.pop()
                     elif last_top_key == 'Major Version':
                         doc.expandNode(node)
                         major_version = self.dePlist(node)
@@ -96,7 +96,7 @@ class iPhotoLibrary(object):
                         stack.pop()
                         if minor_version > self.minor_version:
                             self.status(
-                                "\nI don't recognise iPhoto libraries when the minor version is %i, but let's try anyway.\n" % minor_version, 
+                                "\nI don't recognise iPhoto libraries when the minor version is %i, but let's try anyway.\n" % minor_version,
                                 force=True
                             )
 
@@ -115,15 +115,15 @@ class iPhotoLibrary(object):
                             self.images[last_image_key] = self.dePlist(
                                 node, self.interesting_image_keys
                             )
-                        stack.pop()                        
+                        stack.pop()
             elif event == END_ELEMENT:
                 stack.pop()
 
     def dePlist(self, node, interesting_keys=None):
         """
         Given a DOM node, convert the plist (fragment) it refers to and
-        return the corresponding Python data structure. 
-    
+        return the corresponding Python data structure.
+
         If interesting_keys is a list, "dict" keys will be filtered so that
         only those nominated are returned (for ALL descendant dicts). Numeric
         keys aren't filtered.
@@ -138,14 +138,14 @@ class iPhotoLibrary(object):
             except ValueError:
                 raise iPhotoLibraryError, \
                 "Corrupted Library; unexpected value '%s' for integer" % \
-                    self.getText(node) 
+                    self.getText(node)
         elif dtype == 'real':
             try:
                 return float(self.getText(node))
             except ValueError:
                 raise iPhotoLibraryError, \
                 "Corrupted Library; unexpected value '%s' for real" % \
-                    self.getText(node) 
+                    self.getText(node)
         elif dtype == 'array':
             return [self.dePlist(c, ik) for c in node.childNodes \
                     if c.nodeType == Node.ELEMENT_NODE]
@@ -178,27 +178,27 @@ class iPhotoLibrary(object):
 
     @staticmethod
     def getText(element, default=None):
-        if element is None: 
+        if element is None:
             return default
-        if len(element.childNodes) == 0: 
+        if len(element.childNodes) == 0:
             return None
-        else: 
+        else:
             return "".join([n.nodeValue for n in element.childNodes])
-            
+
     def walk(self, funcs):
         """
         Walk through the events or albums (depending on the value of albums)
-        in this library and apply each function in the list funcs to each 
+        in this library and apply each function in the list funcs to each
         image, calling it as:
            func(folderName, folderDate, imageId)
         where:
-         - folderName is the name the folder, 
+         - folderName is the name the folder,
          - folderDate is the date of the folder, and
          - imageId is the string identifier for the image.
         """
         if self.use_album:
             targetName = "AlbumName"
-            albums = [a for a in self.albums if 
+            albums = [a for a in self.albums if
                       a.get("Album Type", None) == "Regular"]
         else:
             targetName = "RollName"
@@ -209,13 +209,13 @@ class iPhotoLibrary(object):
             folderName = folder[targetName]
             if self.use_album:
                 folderDate = None
-            else: 
+            else:
                 folderDate = self.appleDate(folder["RollDateAsTimerInterval"])
             images = folder["KeyList"]
             self.status("* Processing %i of %i: %s (%i images)...\n" % (
                 i,
                 len(albums),
-                folderName, 
+                folderName,
                 len(images)
             ))
             for imageId in images:
@@ -223,20 +223,20 @@ class iPhotoLibrary(object):
                     func(imageId, folderName, folderDate)
             self.status("\n")
 
-    def copyImage(self, imageId, folderName, folderDate, 
+    def copyImage(self, imageId, folderName, folderDate,
                   targetDir, writeMD=False, tagFaces=False, useDate=True):
         """
         Copy an image from the library to a folder in the targetDir. The
         name of the folder is based on folderName and folderDate; if
         folderDate is None, it's only based upon the folderName.
-        
+
         If writeMD is True, also write the image metadata from the library
         to the copy. If tagFaces is True, faces will be saved as keywords.
         """
         try:
             image = self.images[imageId]
         except KeyError:
-            raise iPhotoLibraryError, "Can't find image #%s" % imageId            
+            raise iPhotoLibraryError, "Can't find image #%s" % imageId
 
         if folderDate and useDate:
             date = '%(year)d-%(month)02d-%(day)02d' % {
@@ -287,7 +287,7 @@ class iPhotoLibrary(object):
         """
         Write the metadata from the library for imageId to filePath.
         If filePath is None, write it to the photo in the library.
-        If tagFaces is True, iPhoto face names will be written to 
+        If tagFaces is True, iPhoto face names will be written to
         keywords.
         """
         try:
@@ -296,13 +296,13 @@ class iPhotoLibrary(object):
             raise iPhotoLibraryError, "Can't find image #%s" % imageId
         if not filePath:
             filePath = image['ImagePath']
-            
+
         caption = image.get("Caption", None)
         rating = image.get("Rating", None)
         comment = image.get("Comment", None)
         keywords = set([self.keywords[k] for k in image.get("Keywords", [])])
         if tagFaces:
-            keywords.update([self.faces[f['face key']] 
+            keywords.update([self.faces[f['face key']]
                              for f in image.get("Faces", [])
                              if self.faces.has_key(f['face key'])]
             )
@@ -338,7 +338,7 @@ class iPhotoLibrary(object):
         if force or not self.quiet:
             sys.stdout.write(msg)
             sys.stdout.flush()
-            
+
 def error(msg):
     sys.stderr.write("\n%s\n" % msg)
     sys.exit(1)
@@ -349,57 +349,57 @@ if __name__ == '__main__':
     version = "exportiphoto version %s" % __version__
     option_parser = OptionParser(usage=usage, version=version)
     option_parser.set_defaults(
-        test=False, 
-        albums=False, 
+        test=False,
+        albums=False,
         metadata=False,
         faces=False,
         quiet=False,
         date=True
     )
-    
+
     option_parser.add_option("-a", "--albums",
                              action="store_true", dest="albums",
                              help="use albums instead of events"
     )
-     
+
     option_parser.add_option("-q", "--quiet",
                              action="store_true", dest="quiet",
                              help="use quiet mode"
     )
-    
+
     option_parser.add_option("-d", "--date",
                              action="store_false", dest="date",
                              help="stop use date prefix in folder name"
     )
-    
+
     if pyexiv2:
         option_parser.add_option("-m", "--metadata",
                                  action="store_true", dest="metadata",
                                  help="write metadata to images"
         )
-        
-        option_parser.add_option("-f", "--faces", 
+
+        option_parser.add_option("-f", "--faces",
                                  action="store_true", dest="faces",
                                  help="store faces as keywords (requires -m)"
         )
-    
+
     (options, args) = option_parser.parse_args()
-    
+
     if len(args) != 2:
         option_parser.error(
             "Please specify an iPhoto library and a destination."
         )
-    
+
     try:
         library = iPhotoLibrary(args[0], use_album=options.albums, quiet=options.quiet)
         def copyImage(imageId, folderName, folderDate):
-            library.copyImage(imageId, folderName, folderDate, 
+            library.copyImage(imageId, folderName, folderDate,
                   args[1], writeMD=options.metadata, tagFaces=options.faces, useDate=options.date)
     except iPhotoLibraryError, why:
         error(why[0])
     except KeyboardInterrupt:
         error("Interrupted.")
-    try:    
+    try:
         library.walk([copyImage])
     except iPhotoLibraryError, why:
         error(why[0])
