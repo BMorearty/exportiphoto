@@ -31,8 +31,13 @@ class iPhotoLibraryError(Exception):
     pass
 
 class iPhotoLibrary(object):
-    def __init__(self, albumDir, use_album=False, quiet=False):
+    def __init__(self, albumDir, destDir, use_album=False, use_date=False,
+                 use_faces=False, use_metadata=False, quiet=False):
         self.use_album = use_album
+        self.use_date =  use_date
+        self.use_faces = use_faces
+        self.use_metadata = use_metadata
+        self.dest_dir = destDir
         self.quiet = quiet
         self.albums = []
         self.keywords = {}
@@ -223,22 +228,21 @@ class iPhotoLibrary(object):
                     func(imageId, folderName, folderDate)
             self.status("\n")
 
-    def copyImage(self, imageId, folderName, folderDate,
-                  targetDir, writeMD=False, tagFaces=False, useDate=True):
+    def copyImage(self, imageId, folderName, folderDate):
         """
-        Copy an image from the library to a folder in the targetDir. The
+        Copy an image from the library to a folder in the dest_dir. The
         name of the folder is based on folderName and folderDate; if
         folderDate is None, it's only based upon the folderName.
 
-        If writeMD is True, also write the image metadata from the library
-        to the copy. If tagFaces is True, faces will be saved as keywords.
+        If use_metadata is True, also write the image metadata from the library
+        to the copy. If use_faces is True, faces will be saved as keywords.
         """
         try:
             image = self.images[imageId]
         except KeyError:
             raise iPhotoLibraryError, "Can't find image #%s" % imageId
 
-        if folderDate and useDate:
+        if folderDate and self.use_date:
             date = '%(year)d-%(month)02d-%(day)02d' % {
                 'year': folderDate.year,
                 'month': folderDate.month,
@@ -250,7 +254,7 @@ class iPhotoLibrary(object):
                 outputPath = date + " " + folderName
         else:
             outputPath = folderName
-        targetFileDir = os.path.join(targetDir, outputPath)
+        targetFileDir = os.path.join(self.dest_dir, outputPath)
 
         if not os.path.exists(targetFileDir):
             try:
@@ -265,7 +269,7 @@ class iPhotoLibrary(object):
         tFilePath = os.path.join(targetFileDir, basename)
 
         # Skip unchanged files, unless we're writing metadata.
-        if not writeMD and os.path.exists(tFilePath):
+        if not self.use_metadata and os.path.exists(tFilePath):
             mStat = os.stat(mFilePath)
             tStat = os.stat(tFilePath)
             if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) <= 10 or \
@@ -275,19 +279,18 @@ class iPhotoLibrary(object):
 
         shutil.copy2(mFilePath, tFilePath)
         md_written = False
-        if writeMD:
-            md_written = self.writePhotoMD(imageId, tFilePath, tagFaces)
+        if self.use_metadata:
+            md_written = self.writePhotoMD(imageId, tFilePath)
         if md_written:
             self.status("+")
         else:
             self.status(".")
 
-
-    def writePhotoMD(self, imageId, filePath=None, tagFaces=False):
+    def writePhotoMD(self, imageId, filePath=None):
         """
         Write the metadata from the library for imageId to filePath.
         If filePath is None, write it to the photo in the library.
-        If tagFaces is True, iPhoto face names will be written to
+        If use_faces is True, iPhoto face names will be written to
         keywords.
         """
         try:
@@ -301,7 +304,7 @@ class iPhotoLibrary(object):
         rating = image.get("Rating", None)
         comment = image.get("Comment", None)
         keywords = set([self.keywords[k] for k in image.get("Keywords", [])])
-        if tagFaces:
+        if self.use_faces:
             keywords.update([self.faces[f['face key']]
                              for f in image.get("Faces", [])
                              if self.faces.has_key(f['face key'])]
@@ -391,10 +394,15 @@ if __name__ == '__main__':
         )
 
     try:
-        library = iPhotoLibrary(args[0], use_album=options.albums, quiet=options.quiet)
+        library = iPhotoLibrary(args[0], # src
+                                args[1], # dest
+                                use_album=options.albums,
+                                use_date=options.date,
+                                use_faces=options.faces,
+                                use_metadata=options.metadata,
+                                quiet=options.quiet)
         def copyImage(imageId, folderName, folderDate):
-            library.copyImage(imageId, folderName, folderDate,
-                  args[1], writeMD=options.metadata, tagFaces=options.faces, useDate=options.date)
+            library.copyImage(imageId, folderName, folderDate)
     except iPhotoLibraryError, why:
         error(why[0])
     except KeyboardInterrupt:
