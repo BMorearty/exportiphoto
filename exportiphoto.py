@@ -39,6 +39,7 @@ class iPhotoLibrary(object):
         self.use_metadata = use_metadata
         self.dest_dir = destDir
         self.output_dirs = set()
+        self.output_files = set()
         self.quiet = quiet
         self.albums = []
         self.keywords = {}
@@ -276,6 +277,11 @@ class iPhotoLibrary(object):
         mFilePath = image["ImagePath"]
         basename = os.path.basename(mFilePath)
         tFilePath = os.path.join(folderName, basename)
+        j = 1
+        while tFilePath in self.output_files:
+            tFilePath = os.path.join(folderName, "%02d_"%j + basename)
+            j += 1
+        self.output_files.add(tFilePath)
 
         # Skip unchanged files, unless we're writing metadata.
         if not self.use_metadata and os.path.exists(tFilePath):
