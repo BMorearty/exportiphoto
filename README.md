@@ -21,11 +21,13 @@ Usage
 1. Run this:
         python exportiphoto.py [options] <iPhoto Library dir> <destination dir>
    Options include:
-        -a, --albums    use albums instead of events
-        -m, --metadata  write metadata to images
-        -f, --faces     store faces as keywords (requires -m)
-        -q, --quiet     use quiet mode
-        -d, --date      stop using date prefix in folder name
+        -a, --albums      use albums instead of events
+        -m, --metadata    write metadata to images
+        -f, --faces       store faces as keywords (requires -m)
+        -q, --quiet       use quiet mode
+        -d, --date        stop using date prefix in folder name
+        -x, --deconflict  deconflict export directories of same name
+
 2. There is no step 2
 
 note that the -m flag is only available if extra libraries are installed;

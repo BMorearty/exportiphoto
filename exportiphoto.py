@@ -32,11 +32,12 @@ class iPhotoLibraryError(Exception):
 
 class iPhotoLibrary(object):
     def __init__(self, albumDir, destDir, use_album=False, use_date=False,
-                 use_faces=False, use_metadata=False, quiet=False):
+                 use_faces=False, use_metadata=False, deconflict=False, quiet=False):
         self.use_album = use_album
         self.use_date =  use_date
         self.use_faces = use_faces
         self.use_metadata = use_metadata
+        self.deconflict = deconflict
         self.dest_dir = destDir
         self.output_dirs = set()
         self.output_files = set()
@@ -235,11 +236,12 @@ class iPhotoLibrary(object):
 
             # Deconflict output directories
             targetFileDir = os.path.join(self.dest_dir, outputPath)
-            j = 1
-            while targetFileDir in self.output_dirs:
-                targetFileDir = os.path.join(self.dest_dir, outputPath + " %02d"%j)
-                j += 1
-            self.output_dirs.add(targetFileDir)
+            if self.deconflict:
+                j = 1
+                while targetFileDir in self.output_dirs:
+                    targetFileDir = os.path.join(self.dest_dir, outputPath + " %02d"%j)
+                    j += 1
+                self.output_dirs.add(targetFileDir)
 
             self.status("* Processing %i of %i: %s (%i images)...\n" % (
                 i,
@@ -276,12 +278,15 @@ class iPhotoLibrary(object):
 
         mFilePath = image["ImagePath"]
         basename = os.path.basename(mFilePath)
+
+        # Deconflict ouput filenames
         tFilePath = os.path.join(folderName, basename)
-        j = 1
-        while tFilePath in self.output_files:
-            tFilePath = os.path.join(folderName, "%02d_"%j + basename)
-            j += 1
-        self.output_files.add(tFilePath)
+        if self.deconflict:
+            j = 1
+            while tFilePath in self.output_files:
+                tFilePath = os.path.join(folderName, "%02d_"%j + basename)
+                j += 1
+            self.output_files.add(tFilePath)
 
         # Skip unchanged files, unless we're writing metadata.
         if not self.use_metadata and os.path.exists(tFilePath):
@@ -390,6 +395,11 @@ if __name__ == '__main__':
                              help="stop use date prefix in folder name"
     )
 
+    option_parser.add_option("-x", "--deconflict",
+                             action="store_true", dest="deconflict",
+                             help="deconflict export directories of same name"
+    )
+
     if pyexiv2:
         option_parser.add_option("-m", "--metadata",
                                  action="store_true", dest="metadata",
@@ -415,6 +425,7 @@ if __name__ == '__main__':
                                 use_date=options.date,
                                 use_faces=options.faces,
                                 use_metadata=options.metadata,
+                                deconflict=options.deconflict,
                                 quiet=options.quiet)
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate)
