@@ -38,6 +38,7 @@ class iPhotoLibrary(object):
         self.use_faces = use_faces
         self.use_metadata = use_metadata
         self.dest_dir = destDir
+        self.output_dirs = set()
         self.quiet = quiet
         self.albums = []
         self.keywords = {}
@@ -211,12 +212,34 @@ class iPhotoLibrary(object):
         i = 0
         for folder in albums:
             i += 1
-            folderName = folder[targetName]
             if self.use_album:
                 folderDate = None
             else:
                 folderDate = self.appleDate(folder["RollDateAsTimerInterval"])
             images = folder["KeyList"]
+
+            folderName = folder[targetName]
+            if folderDate and self.use_date:
+                date = '%(year)d-%(month)02d-%(day)02d' % {
+                    'year': folderDate.year,
+                    'month': folderDate.month,
+                    'day': folderDate.day
+                }
+                if re.match("[A-Z][a-z]{2} [0-9]{1,2}, [0-9]{4}", folderName):
+                    outputPath = date
+                else:
+                    outputPath = date + " " + folderName
+            else:
+                outputPath = folderName
+
+            # Deconflict output directories
+            targetFileDir = os.path.join(self.dest_dir, outputPath)
+            j = 1
+            while targetFileDir in self.output_dirs:
+                targetFileDir = os.path.join(self.dest_dir, outputPath + " %02d"%j)
+                j += 1
+            self.output_dirs.add(targetFileDir)
+
             self.status("* Processing %i of %i: %s (%i images)...\n" % (
                 i,
                 len(albums),
@@ -225,7 +248,7 @@ class iPhotoLibrary(object):
             ))
             for imageId in images:
                 for func in funcs:
-                    func(imageId, folderName, folderDate)
+                    func(imageId, targetFileDir, folderDate)
             self.status("\n")
 
     def copyImage(self, imageId, folderName, folderDate):
@@ -242,31 +265,17 @@ class iPhotoLibrary(object):
         except KeyError:
             raise iPhotoLibraryError, "Can't find image #%s" % imageId
 
-        if folderDate and self.use_date:
-            date = '%(year)d-%(month)02d-%(day)02d' % {
-                'year': folderDate.year,
-                'month': folderDate.month,
-                'day': folderDate.day
-            }
-            if re.match("[A-Z][a-z]{2} [0-9]{1,2}, [0-9]{4}", folderName):
-                outputPath = date
-            else:
-                outputPath = date + " " + folderName
-        else:
-            outputPath = folderName
-        targetFileDir = os.path.join(self.dest_dir, outputPath)
-
-        if not os.path.exists(targetFileDir):
+        if not os.path.exists(folderName):
             try:
-                os.makedirs(targetFileDir)
+                os.makedirs(folderName)
             except OSError, why:
                 raise iPhotoLibraryError, \
-                    "Can't create %s: %s" % (targetFileDir, why[1])
-            self.status("  Created %s\n" % targetFileDir)
+                    "Can't create %s: %s" % (folderName, why[1])
+            self.status("  Created %s\n" % folderName)
 
         mFilePath = image["ImagePath"]
         basename = os.path.basename(mFilePath)
-        tFilePath = os.path.join(targetFileDir, basename)
+        tFilePath = os.path.join(folderName, basename)
 
         # Skip unchanged files, unless we're writing metadata.
         if not self.use_metadata and os.path.exists(tFilePath):
