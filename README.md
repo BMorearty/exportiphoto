@@ -21,7 +21,7 @@ Installation
 
 Run Terminal and enter this command:
 
-    curl https://raw.github.com/BMorearty/exportiphoto/master/exportiphoto.py
+    curl https://raw.github.com/BMorearty/exportiphoto/master/exportiphoto.py > exportiphoto.py
 
 This copies exportiphoto.py to your Home folder. Actually you can put it
 anywhere you want.
