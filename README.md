@@ -12,8 +12,19 @@ Originally written by Derrick Childers and
 Modifications by Guillaume Boudreau,
 [Brian Morearty](http://github.com/BMorearty),
 [Mark Nottingham](http://github.com/mnot),
-[Duoglas Du](http://github.com/duoglas), and
-[Avinash Meetoo](http://github.com/avinash)
+[Duoglas Du](http://github.com/duoglas),
+[Avinash Meetoo](http://github.com/avinash), and
+[J.G. Field](http://gitub.com/jgfield)
+
+Installation
+------------
+
+Run Terminal and enter this command:
+
+    curl https://raw.github.com/BMorearty/exportiphoto/master/exportiphoto.py
+
+This copies exportiphoto.py to your Home folder. Actually you can put it
+anywhere you want.
 
 Usage
 -----
