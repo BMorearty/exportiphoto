@@ -32,7 +32,9 @@ class iPhotoLibraryError(Exception):
 
 class iPhotoLibrary(object):
     def __init__(self, albumDir, destDir, use_album=False, use_date=False,
-                 use_faces=False, use_metadata=False, deconflict=False, quiet=False):
+                 use_faces=False, use_metadata=False, deconflict=False, quiet=False,
+                 year_dir=False, import_missing=False, import_from_date=None, test=False,
+                 date_delimiter="-"):
         self.use_album = use_album
         self.use_date =  use_date
         self.use_faces = use_faces
@@ -46,6 +48,18 @@ class iPhotoLibrary(object):
         self.keywords = {}
         self.faces = {}
         self.images = {}
+        self.test = test
+        self.year_dir = year_dir
+        self.import_missing = import_missing
+        self.date_delimiter = date_delimiter
+        self.import_albums = []
+
+        if import_from_date:
+            self.import_from_date = datetime.strptime(import_from_date, "%Y-%m-%d")
+
+        if self.import_missing:
+            self.build_import_list()
+
         albumDataXml = os.path.join(albumDir, "AlbumData.xml")
         self.status("* Parsing iPhoto Library data... ")
         self.parseAlbumData(albumDataXml)
@@ -221,16 +235,29 @@ class iPhotoLibrary(object):
             images = folder["KeyList"]
 
             folderName = folder[targetName]
+
+            #as we process albums/events in the iPhoto library, remove that album
+            #from the list of import_albums we'll be importing at the end
+            if self.import_albums:
+                self.status(folderName + "\n")
+                for ia in self.import_albums:
+                    for album_name in ia['album_names']:
+                        if folderName == album_name:
+                            self.import_albums.remove(ia)
+
             if folderDate and self.use_date:
-                date = '%(year)d-%(month)02d-%(day)02d' % {
+                date = '%(year)d%(delim)s%(month)02d%(delim)s%(day)02d' % {
                     'year': folderDate.year,
                     'month': folderDate.month,
-                    'day': folderDate.day
+                    'day': folderDate.day,
+                    'delim': self.date_delimiter
                 }
                 if re.match("[A-Z][a-z]{2} [0-9]{1,2}, [0-9]{4}", folderName):
                     outputPath = date
                 else:
                     outputPath = date + " " + folderName
+                if self.year_dir:
+                    outputPath = os.path.join(str(folderDate.year), outputPath)
             else:
                 outputPath = folderName
 
@@ -254,6 +281,20 @@ class iPhotoLibrary(object):
                     func(imageId, targetFileDir, folderDate)
             self.status("\n")
 
+        if self.import_missing: 
+            self.status("importing folders:\n")
+            for ia in self.import_albums:
+                self.status(ia["album_dir"] + "\n")
+
+                #using the "Auto Import" dir in iPhoto was unpredictable with respect to the resulting event name.
+                #Using AppleScript to import the event, seams to always result in the event being properly named
+                if not self.test:
+                    os.system('''osascript -e '
+tell application "iPhoto"
+    import from "%s"
+end tell
+' ''' % ia["album_dir"])
+
     def copyImage(self, imageId, folderName, folderDate):
         """
         Copy an image from the library to a folder in the dest_dir. The
@@ -270,7 +311,8 @@ class iPhotoLibrary(object):
 
         if not os.path.exists(folderName):
             try:
-                os.makedirs(folderName)
+                if not self.test:
+                    os.makedirs(folderName)
             except OSError, why:
                 raise iPhotoLibraryError, \
                     "Can't create %s: %s" % (folderName, why[1])
@@ -297,7 +339,8 @@ class iPhotoLibrary(object):
                 self.status("-")
                 return
 
-        shutil.copy2(mFilePath, tFilePath)
+        if not self.test:
+            shutil.copy2(mFilePath, tFilePath)
         md_written = False
         if self.use_metadata:
             md_written = self.writePhotoMD(imageId, tFilePath)
@@ -342,7 +385,8 @@ class iPhotoLibrary(object):
                     md["Iptc.Application2.Caption"] = [comment]
                 if keywords:
                     md["Iptc.Application2.Keywords"] = list(keywords)
-                md.write(preserve_timestamps=True)
+                if not self.test:
+                    md.write(preserve_timestamps=True)
                 return True
             except IOError, why:
                 self.status("\nProblem setting metadata (%s) on %s\n" % (
@@ -361,6 +405,59 @@ class iPhotoLibrary(object):
         if force or not self.quiet:
             sys.stdout.write(msg)
             sys.stdout.flush()
+
+    def build_import_list(self):
+        '''
+        We are going to make some assumptions here.
+        1. The dest_dir is a directory of albums containing images, optionally the albums can be in year dirs.
+        2. Album dirs are assumed to follow one of these naming patterns:
+           [0-9]{4}.[0-9]{2}.[0-9]{2} ?.*      -  Dated folder, unnamed, iPhoto album name could match or
+                                                  could be iPhoto date format
+           .*                                  -  Named folder, iPhoto album name
+
+        Walk the dest dir and find all folders and files.  For each folder determine the possible iPhoto album names.
+        When walking the xml eliminate any folder we find where one of the possible album names matches an
+        existing album name.
+        '''
+        if self.year_dir:
+            year_dir_list = os.listdir(self.dest_dir)
+            for year_dir in year_dir_list:
+                # if year_dir was specified, then only match on folders inside year folders
+                if not re.match("^[0-9]{4}$", year_dir): continue
+
+                # if import_from_date was specified, then skip folders where the year_dir is before the import_from_date.year
+                if self.import_from_date and int(year_dir) < self.import_from_date.year: continue
+
+                self.build_import_album_dirs(os.path.join(self.dest_dir, year_dir))
+        else:
+            self.build_import_album_dirs(self.dest_dir)
+
+    def build_import_album_dirs(self, base_dir):
+        delim = str(self.date_delimiter)
+        for album_name in os.listdir(base_dir):
+            album_names = [album_name]
+            folder_date = None
+            # Folder patter: "2011_01_01 New Years Party"
+            m = re.match(r"([0-9]{4}.[0-9]{2}.[0-9]{2}) ?(.*)", album_name)
+            if m:
+                folder_date = datetime.strptime(m.group(1), "%Y" + delim + "%m" + delim + "%d")
+                album_names.append(m.group(2))
+
+            # Folder patter: "2011_01_01"
+            m = re.match(r"^[0-9]{4}.[0-9]{2}.[0-9]{2}$", album_name)
+            if m:
+                folder_date = datetime.strptime(album_name, "%Y" + delim + "%m" + delim + "%d")
+                month, day, year = folder_date.strftime("%b %d %Y").split(" ")
+                album_names.append("%s %d, %s" %(month, int(day), year))
+
+            #don't import folders that are prior to the specified date
+            if not folder_date: continue
+            if self.import_from_date and folder_date < self.import_from_date: continue
+
+            album_dir = os.path.abspath(os.path.join(base_dir, album_name))
+
+            this_album = { "album_names": album_names, "album_dir":album_dir, }
+            self.import_albums.append(this_album)
 
 def error(msg):
     sys.stderr.write("\n%s\n" % msg)
@@ -400,6 +497,31 @@ if __name__ == '__main__':
                              help="deconflict export directories of same name"
     )
 
+    option_parser.add_option("-t", "--test",
+                             action="store_true", dest="test",
+                             help="don't actually copy files or import folders"
+    )
+
+    option_parser.add_option("-y", "--yeardir",
+                             action="store_true", dest="year_dir",
+                             help="add year directory to output"
+    )
+
+    option_parser.add_option("-e", "--date_delimiter",
+                             action="store", type="string", dest="date_delimiter",
+                             help="date delimiter default=-"
+    )
+
+    option_parser.add_option("-i", "--import",
+                             action="store_true", dest="import_missing",
+                             help="import missing albums from dest directory"
+    )
+
+    option_parser.add_option("-z", "--import_from_date",
+                             action="store", type="string", dest="import_from_date",
+                             help="only import missing folers if folder date occurs after (YYYY-MM-DD). Uses date in folder name."
+    )
+
     if pyexiv2:
         option_parser.add_option("-m", "--metadata",
                                  action="store_true", dest="metadata",
@@ -426,7 +548,13 @@ if __name__ == '__main__':
                                 use_faces=options.faces,
                                 use_metadata=options.metadata,
                                 deconflict=options.deconflict,
-                                quiet=options.quiet)
+                                quiet=options.quiet,
+                                year_dir=options.year_dir,
+                                import_missing=options.import_missing,
+                                import_from_date=options.import_from_date,
+                                test=options.test,
+                                date_delimiter=options.date_delimiter,
+                                )
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate)
     except iPhotoLibraryError, why:

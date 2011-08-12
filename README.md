@@ -40,6 +40,14 @@ Usage
         -q, --quiet       use quiet mode
         -d, --date        stop using date prefix in folder name
         -x, --deconflict  deconflict export directories of same name
+        -y, --yeardir     add year directory to output
+        -e DATE_DELIMITER, --date_delimiter=DATE_DELIMITER
+                          date delimiter default=-
+        -i, --import      import missing albums from dest directory
+        -z IMPORT_FROM_DATE, --import_from_date=IMPORT_FROM_DATE
+                          only import missing folers if folder date occurs after
+                          (YYYY-MM-DD). Uses date in folder name.
+        -t, --test        dont actually copy files or import folders
 
 2. There is no step 2
 
