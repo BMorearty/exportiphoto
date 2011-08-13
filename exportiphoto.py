@@ -239,7 +239,6 @@ class iPhotoLibrary(object):
             #as we process albums/events in the iPhoto library, remove that album
             #from the list of import_albums we'll be importing at the end
             if self.import_albums:
-                self.status(folderName + "\n")
                 for ia in self.import_albums:
                     for album_name in ia['album_names']:
                         if folderName == album_name:
@@ -254,6 +253,8 @@ class iPhotoLibrary(object):
                 }
                 if re.match("[A-Z][a-z]{2} [0-9]{1,2}, [0-9]{4}", folderName):
                     outputPath = date
+                elif re.match("[0-9]{4}.[0-9]{2}.[0-9]{2} ?.*", folderName):
+                    outputPath = folderName
                 else:
                     outputPath = date + " " + folderName
                 if self.year_dir:
@@ -289,11 +290,13 @@ class iPhotoLibrary(object):
                 #using the "Auto Import" dir in iPhoto was unpredictable with respect to the resulting event name.
                 #Using AppleScript to import the event, seams to always result in the event being properly named
                 if not self.test:
+                    #There is probably a better way to do this. I noticed I had an album with an ' in it that errored...
+                    escaped_dir = ia["album_dir"].replace("'", "\\'").replace('"', '\\"')
                     os.system('''osascript -e '
 tell application "iPhoto"
     import from "%s"
 end tell
-' ''' % ia["album_dir"])
+' ''' % escaped_dir)
 
     def copyImage(self, imageId, folderName, folderDate):
         """
