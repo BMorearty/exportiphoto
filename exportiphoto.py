@@ -12,6 +12,7 @@ import shutil
 import stat
 import sys
 
+import time
 from datetime import datetime
 from optparse import OptionParser
 from xml.dom.pulldom import START_ELEMENT, END_ELEMENT, parse
@@ -34,7 +35,7 @@ class iPhotoLibrary(object):
     def __init__(self, albumDir, destDir, use_album=False, use_date=False,
                  use_faces=False, use_metadata=False, deconflict=False, quiet=False,
                  year_dir=False, import_missing=False, import_from_date=None, test=False,
-                 date_delimiter="-"):
+                 date_delimiter="-", ignore_time_delta=False):
         self.use_album = use_album
         self.use_date =  use_date
         self.use_faces = use_faces
@@ -51,6 +52,7 @@ class iPhotoLibrary(object):
         self.test = test
         self.year_dir = year_dir
         self.import_missing = import_missing
+        self.ignore_time_delta = ignore_time_delta
         self.date_delimiter = date_delimiter
         self.import_albums = []
 
@@ -337,8 +339,12 @@ end tell
         if not self.use_metadata and os.path.exists(tFilePath):
             mStat = os.stat(mFilePath)
             tStat = os.stat(tFilePath)
-            if abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) <= 10 or \
-              tStat[stat.ST_SIZE] == mStat[stat.ST_SIZE]:
+
+            if not self.ignore_time_delta and abs(tStat[stat.ST_MTIME] - mStat[stat.ST_MTIME]) <= 10:
+                self.status("-")
+                return
+
+            if tStat[stat.ST_SIZE] == mStat[stat.ST_SIZE]:
                 self.status("-")
                 return
 
@@ -477,7 +483,8 @@ if __name__ == '__main__':
         metadata=False,
         faces=False,
         quiet=False,
-        date=True
+        date=True,
+        ignore_time_delta=False
     )
 
     option_parser.add_option("-a", "--albums",
@@ -520,6 +527,11 @@ if __name__ == '__main__':
                              help="import missing albums from dest directory"
     )
 
+    option_parser.add_option("-j", "--ignore_time_delta",
+                             action="store_true", dest="ignore_time_delta",
+                             help="ignore time delta when determining whether or not to copy a file"
+    )
+
     option_parser.add_option("-z", "--import_from_date",
                              action="store", type="string", dest="import_from_date",
                              help="only import missing folers if folder date occurs after (YYYY-MM-DD). Uses date in folder name."
@@ -557,6 +569,7 @@ if __name__ == '__main__':
                                 import_from_date=options.import_from_date,
                                 test=options.test,
                                 date_delimiter=options.date_delimiter,
+                                ignore_time_delta=options.ignore_time_delta
                                 )
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate)
