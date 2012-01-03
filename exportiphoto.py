@@ -245,6 +245,7 @@ class iPhotoLibrary(object):
             if self.import_albums:
                 for ia in self.import_albums:
                     for album_name in ia['album_names']:
+                        album_name = unicode(album_name, 'utf-8')
                         if folderName == album_name:
                             self.import_albums.remove(ia)
 
@@ -448,20 +449,20 @@ end tell
         for album_name in os.listdir(base_dir):
             album_names = [album_name]
             folder_date = None
-            # Folder patter: "2011_01_01 New Years Party"
+            # Folder pattern: "2011_01_01 New Years Party"
             m = re.match(r"([0-9]{4}\%s[0-9]{2}\%s[0-9]{2}) ?(.*)" % (delim, delim), album_name)
             if m:
                 folder_date = datetime.strptime(m.group(1), "%Y" + delim + "%m" + delim + "%d")
                 album_names.append(m.group(2))
 
-            # Folder patter: "2011_01_01"
+            # Folder pattern: "2011_01_01"
             m = re.match(r"^[0-9]{4}\%s[0-9]{2}\%s[0-9]{2}$" % (delim, delim), album_name)
             if m:
                 folder_date = datetime.strptime(album_name, "%Y" + delim + "%m" + delim + "%d")
                 month, day, year = folder_date.strftime("%b %d %Y").split(" ")
                 album_names.append("%s %d, %s" %(month, int(day), year))
 
-            #don't import folders that are prior to the specified date
+            # Don't import folders that are prior to the specified date
             if not folder_date: continue
             if self.import_from_date and folder_date < self.import_from_date: continue
 
