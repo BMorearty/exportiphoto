@@ -58,6 +58,8 @@ class iPhotoLibrary(object):
 
         if import_from_date:
             self.import_from_date = datetime.strptime(import_from_date, "%Y-%m-%d")
+        else:
+            self.import_from_date = None
 
         if self.import_missing:
             self.build_import_list()
@@ -243,6 +245,7 @@ class iPhotoLibrary(object):
             if self.import_albums:
                 for ia in self.import_albums:
                     for album_name in ia['album_names']:
+                        album_name = unicode(album_name, 'utf-8')
                         if folderName == album_name:
                             self.import_albums.remove(ia)
 
@@ -399,7 +402,7 @@ end tell
                 return True
             except IOError, why:
                 self.status("\nProblem setting metadata (%s) on %s\n" % (
-                    why, filePath
+                    unicode(why.__str__(), errors='replace'), filePath
                 ))
         return False
 
@@ -446,20 +449,20 @@ end tell
         for album_name in os.listdir(base_dir):
             album_names = [album_name]
             folder_date = None
-            # Folder patter: "2011_01_01 New Years Party"
-            m = re.match(r"([0-9]{4}.[0-9]{2}.[0-9]{2}) ?(.*)", album_name)
+            # Folder pattern: "2011_01_01 New Years Party"
+            m = re.match(r"([0-9]{4}\%s[0-9]{2}\%s[0-9]{2}) ?(.*)" % (delim, delim), album_name)
             if m:
                 folder_date = datetime.strptime(m.group(1), "%Y" + delim + "%m" + delim + "%d")
                 album_names.append(m.group(2))
 
-            # Folder patter: "2011_01_01"
-            m = re.match(r"^[0-9]{4}.[0-9]{2}.[0-9]{2}$", album_name)
+            # Folder pattern: "2011_01_01"
+            m = re.match(r"^[0-9]{4}\%s[0-9]{2}\%s[0-9]{2}$" % (delim, delim), album_name)
             if m:
                 folder_date = datetime.strptime(album_name, "%Y" + delim + "%m" + delim + "%d")
                 month, day, year = folder_date.strftime("%b %d %Y").split(" ")
                 album_names.append("%s %d, %s" %(month, int(day), year))
 
-            #don't import folders that are prior to the specified date
+            # Don't import folders that are prior to the specified date
             if not folder_date: continue
             if self.import_from_date and folder_date < self.import_from_date: continue
 
@@ -476,6 +479,7 @@ def error(msg):
 if __name__ == '__main__':
     usage   = "Usage: %prog [options] <iPhoto Library dir> <destination dir>"
     version = "exportiphoto version %s" % __version__
+    default_date_delimiter = "-"
     option_parser = OptionParser(usage=usage, version=version)
     option_parser.set_defaults(
         test=False,
@@ -519,7 +523,7 @@ if __name__ == '__main__':
 
     option_parser.add_option("-e", "--date_delimiter",
                              action="store", type="string", dest="date_delimiter",
-                             help="date delimiter default=-"
+                             help="date delimiter default=%s" % default_date_delimiter
     )
 
     option_parser.add_option("-i", "--import",
@@ -556,6 +560,9 @@ if __name__ == '__main__':
         )
 
     try:
+        if options.date_delimiter is None:
+            options.date_delimiter = default_date_delimiter
+        
         library = iPhotoLibrary(args[0], # src
                                 args[1], # dest
                                 use_album=options.albums,
