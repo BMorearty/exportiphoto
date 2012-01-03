@@ -478,6 +478,7 @@ def error(msg):
 if __name__ == '__main__':
     usage   = "Usage: %prog [options] <iPhoto Library dir> <destination dir>"
     version = "exportiphoto version %s" % __version__
+    default_date_delimiter = "-"
     option_parser = OptionParser(usage=usage, version=version)
     option_parser.set_defaults(
         test=False,
@@ -521,7 +522,7 @@ if __name__ == '__main__':
 
     option_parser.add_option("-e", "--date_delimiter",
                              action="store", type="string", dest="date_delimiter",
-                             help="date delimiter default=-"
+                             help="date delimiter default=%s" % default_date_delimiter
     )
 
     option_parser.add_option("-i", "--import",
@@ -558,6 +559,9 @@ if __name__ == '__main__':
         )
 
     try:
+        if options.date_delimiter is None:
+            options.date_delimiter = default_date_delimiter
+        
         library = iPhotoLibrary(args[0], # src
                                 args[1], # dest
                                 use_album=options.albums,
