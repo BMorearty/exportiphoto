@@ -449,13 +449,13 @@ end tell
             album_names = [album_name]
             folder_date = None
             # Folder patter: "2011_01_01 New Years Party"
-            m = re.match(r"([0-9]{4}.[0-9]{2}.[0-9]{2}) ?(.*)", album_name)
+            m = re.match(r"([0-9]{4}\%s[0-9]{2}\%s[0-9]{2}) ?(.*)" % (delim, delim), album_name)
             if m:
                 folder_date = datetime.strptime(m.group(1), "%Y" + delim + "%m" + delim + "%d")
                 album_names.append(m.group(2))
 
             # Folder patter: "2011_01_01"
-            m = re.match(r"^[0-9]{4}.[0-9]{2}.[0-9]{2}$", album_name)
+            m = re.match(r"^[0-9]{4}\%s[0-9]{2}\%s[0-9]{2}$" % (delim, delim), album_name)
             if m:
                 folder_date = datetime.strptime(album_name, "%Y" + delim + "%m" + delim + "%d")
                 month, day, year = folder_date.strftime("%b %d %Y").split(" ")
