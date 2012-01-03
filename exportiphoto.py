@@ -399,7 +399,7 @@ end tell
                 return True
             except IOError, why:
                 self.status("\nProblem setting metadata (%s) on %s\n" % (
-                    why, filePath
+                    unicode(why.__str__(), errors='replace'), filePath
                 ))
         return False
 
