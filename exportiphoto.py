@@ -58,6 +58,8 @@ class iPhotoLibrary(object):
 
         if import_from_date:
             self.import_from_date = datetime.strptime(import_from_date, "%Y-%m-%d")
+        else:
+            self.import_from_date = None
 
         if self.import_missing:
             self.build_import_list()
