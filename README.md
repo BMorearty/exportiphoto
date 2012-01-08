@@ -33,7 +33,7 @@ Usage
 
         python exportiphoto.py [options] <iPhoto Library dir> <destination dir>
 
-   Options include:
+    Options include:
 
         -a, --albums      use albums instead of events
         -m, --metadata    write metadata to images
@@ -52,10 +52,10 @@ Usage
 
 2. There is no step 2
 
-note that the -m flag is only available if extra libraries are installed;
+Note that the -m flag is only available if extra libraries are installed;
 see below.
 
-if you are facing encoding problems like "UnicodeEncodeError", try -q flag to stop the console output;
+If you are facing encoding problems like "UnicodeEncodeError", try -q flag to stop the console output;
 
 Output
 ------
