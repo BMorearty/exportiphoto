@@ -30,6 +30,7 @@ Usage
 -----
 
 1. Run this:
+
         python exportiphoto.py [options] <iPhoto Library dir> <destination dir>
 
    Options include:
