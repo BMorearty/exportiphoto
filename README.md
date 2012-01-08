@@ -43,7 +43,9 @@ Usage
         -f, --faces       store faces as keywords (requires -m)
         -q, --quiet       use quiet mode
         -d, --date        stop using date prefix in folder name
-        -x, --deconflict  deconflict export directories of same name
+        -x, --deconflict  deconflict export directories of same name (without
+                          this, two events with the same name on the same date
+                          are merged.)
         -y, --yeardir     add year directory to output
         -e DATE_DELIMITER, --date_delimiter=DATE_DELIMITER
                           date delimiter default=-
