@@ -124,20 +124,20 @@ Unfortunately, there is no easy way to install pyexiv2, but if you have
 MacPorts <http://macports.org/>, it's relatively simple; follow these steps
 to set up:
 
-    > sudo port install scons
-    > sudo port install exiv2
-    > sudo port install boost +python26
+    sudo port install scons
+    sudo port install exiv2
+    sudo port install boost +python26
 
 Then, after downloading Pyexiv2 <http://tilloy.net/dev/pyexiv2/> and changing
 into its source directory:
 
-    > export CXXFLAGS="-I/opt/local/include"
-    > export LDFLAGS="-L/opt/local/lib -lpython2.6"
-    > sudo scons install
-    > cd /opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/
-    > sudo mv libexiv2python.dylib libexiv2python.so
+    export CXXFLAGS="-I/opt/local/include"
+    export LDFLAGS="-L/opt/local/lib -lpython2.6"
+    sudo scons install
+    cd /opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/
+    sudo mv libexiv2python.dylib libexiv2python.so
 
 Note that you'll have to use python2.6 to run the script; e.g.,
 
-    > python2.6 exportiphoto ...
+    python2.6 exportiphoto ...
 
