@@ -9,7 +9,7 @@ may or may not work.
 
 Originally written by Derrick Childers and
 [posted to macosxhints](http://www.macosxhints.com/article.php?story=20081108132735425).
-Modifications by Guillaume Boudreau,
+Modifications by [Guillaume Boudreau](http://github.com/gboudreau),
 [Brian Morearty](http://github.com/BMorearty),
 [Mark Nottingham](http://github.com/mnot),
 [Duoglas Du](http://github.com/duoglas),
