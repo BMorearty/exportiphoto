@@ -9,7 +9,8 @@ may or may not work.
 
 Originally written by Derrick Childers and
 [posted to macosxhints](http://www.macosxhints.com/article.php?story=20081108132735425).
-Modifications by [Guillaume Boudreau](http://github.com/gboudreau),
+Modifications by
+[Guillaume Boudreau](http://github.com/gboudreau),
 [Brian Morearty](http://github.com/BMorearty),
 [Mark Nottingham](http://github.com/mnot),
 [Duoglas Du](http://github.com/duoglas),
@@ -31,7 +32,9 @@ Usage
 
 1. Run this:
 
-        python exportiphoto.py [options] <iPhoto Library dir> <destination dir>
+        python exportiphoto.py [options] "iPhoto-Library-dir" "destination-dir"
+
+    See example below.
 
     Options include:
 
@@ -79,7 +82,7 @@ Let's say you have the following events in iPhoto--two unnamed and one named:
 
 Run:
 
-    python exportiphoto.py ~/Pictures/iPhoto\ Library/ ~/iPhoto\ Export
+    python exportiphoto.py "$HOME/Pictures/iPhoto Library/" "$HOME/iPhoto Export"
 
 If Charlie's birthday party was on June 15th, the output folders will be:
 
