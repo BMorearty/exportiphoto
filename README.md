@@ -7,7 +7,7 @@ metadata to the copies.
 This script has been tested with iPhoto 8.1.2 (from iLife '09); other versions
 may or may not work.
 
-Originally written by Derrick Childers and
+Originally written by [Derrick Childers](https://github.com/derrickchilders) and
 [posted to macosxhints](http://www.macosxhints.com/article.php?story=20081108132735425).
 Modifications by
 [Guillaume Boudreau](http://github.com/gboudreau),
