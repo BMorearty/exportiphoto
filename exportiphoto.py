@@ -15,8 +15,9 @@ import sys
 import time
 from datetime import datetime
 from optparse import OptionParser
-from xml.dom.pulldom import START_ELEMENT, END_ELEMENT, parse
+from xml.dom.pulldom import START_ELEMENT, END_ELEMENT, DOMEventStream
 from xml.dom.minidom import Node
+from xml.sax import SAXException, make_parser
 
 try:
     import pyexiv2
@@ -82,7 +83,7 @@ class iPhotoLibrary(object):
         Parse an iPhoto AlbumData.xml file, keeping the interesting
         bits.
         """
-        doc = parse(filename)
+        doc = ForgivingDOMEventStream(open(filename), make_parser(), (2**14)-20)
         stack = []
         last_top_key = None
         if self.use_album:
@@ -470,6 +471,25 @@ end tell
 
             this_album = { "album_names": album_names, "album_dir":album_dir, }
             self.import_albums.append(this_album)
+
+
+class ForgivingDOMEventStream(DOMEventStream):
+    def getEvent(self):
+        if not self.pulldom.firstEvent[1]:
+            self.pulldom.lastEvent = self.pulldom.firstEvent
+        while not self.pulldom.firstEvent[1]:
+            buf = self.stream.read(self.bufsize)
+            if not buf:
+                self.parser.close()
+                return None
+            try:
+                self.parser.feed(buf)
+            except SAXException, why:
+                sys.stderr.write("Warning: %s\n", why[1])
+                pass # try again, there was a parse error.
+        rc = self.pulldom.firstEvent[1][0]
+        self.pulldom.firstEvent[1] = self.pulldom.firstEvent[1][1]
+        return rc
 
 def error(msg):
     sys.stderr.write("\n%s\n" % msg)
