@@ -5,6 +5,7 @@ __version__ = "0.6"
 
 import base64
 import codecs
+import io
 import locale
 import os
 import re
@@ -14,6 +15,7 @@ import sys
 
 import time
 from datetime import datetime
+from io import IOBase
 from optparse import OptionParser
 from xml.dom.pulldom import START_ELEMENT, END_ELEMENT, parse
 from xml.dom.minidom import Node
@@ -30,6 +32,18 @@ sys.stderr = codecs.getwriter(locale.getpreferredencoding())(sys.stderr)
 
 class iPhotoLibraryError(Exception):
     pass
+
+# Some AlbumData.xml files contain null bytes.  Strip them so the SAX parser
+# doesn't fail with an Invalid Token error.
+class RemoveNullsStream(IOBase):
+    def __init__(self, filename):
+        self.file = open(filename, 'r')
+
+    def read(self, bufsize=2**20):
+        return self.file.read(bufsize).translate(None,"\0")
+
+    def close(self):
+        self.file.close()
 
 class iPhotoLibrary(object):
     def __init__(self, albumDir, destDir, use_album=False, use_date=False,
@@ -65,8 +79,10 @@ class iPhotoLibrary(object):
             self.build_import_list()
 
         albumDataXml = os.path.join(albumDir, "AlbumData.xml")
+        albumDataStream = RemoveNullsStream(albumDataXml)
         self.status("* Parsing iPhoto Library data... ")
-        self.parseAlbumData(albumDataXml)
+        self.parseAlbumData(albumDataStream)
+        albumDataStream.close()
         self.status("Done.\n")
 
     major_version = 2
