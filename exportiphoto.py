@@ -488,6 +488,19 @@ class ForgivingDOMEventStream(DOMEventStream):
         self.parser.setContentHandler(self.pulldom)
         self.parser.setErrorHandler(ForgivingErrorHandler())
 
+    def getEvent(self):
+        if not self.pulldom.firstEvent[1]:
+            self.pulldom.lastEvent = self.pulldom.firstEvent
+        while not self.pulldom.firstEvent[1]:
+            buf = self.stream.read(self.bufsize)
+            if not buf:
+                self.parser.close()
+                return None
+            self.parser.feed(buf.replace("\0", " "))
+        rc = self.pulldom.firstEvent[1][0]
+        self.pulldom.firstEvent[1] = self.pulldom.firstEvent[1][1]
+        return rc
+
 def error(msg):
     sys.stderr.write("\n%s\n" % msg)
     sys.exit(1)
