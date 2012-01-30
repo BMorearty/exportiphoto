@@ -17,8 +17,9 @@ import time
 from datetime import datetime
 from io import IOBase
 from optparse import OptionParser
-from xml.dom.pulldom import START_ELEMENT, END_ELEMENT, parse
+from xml.dom.pulldom import START_ELEMENT, END_ELEMENT, DOMEventStream, PullDOM, ErrorHandler
 from xml.dom.minidom import Node
+from xml.sax import make_parser, handler
 
 try:
     import pyexiv2
@@ -98,7 +99,7 @@ class iPhotoLibrary(object):
         Parse an iPhoto AlbumData.xml file, keeping the interesting
         bits.
         """
-        doc = parse(filename)
+        doc = ForgivingDOMEventStream(open(filename), make_parser(), (2**14)-20)
         stack = []
         last_top_key = None
         if self.use_album:
@@ -486,6 +487,35 @@ end tell
 
             this_album = { "album_names": album_names, "album_dir":album_dir, }
             self.import_albums.append(this_album)
+
+
+class ForgivingErrorHandler(ErrorHandler):
+    def error(self, exception):
+        print "Warning: " + str(exception)
+    def fatalError(self, exception):
+        error("Fatal Error: %s" % str(exception) )
+        
+
+class ForgivingDOMEventStream(DOMEventStream):
+    def reset(self):
+        self.pulldom = PullDOM()
+        # This content handler relies on namespace support
+        self.parser.setFeature(handler.feature_namespaces, 1)
+        self.parser.setContentHandler(self.pulldom)
+        self.parser.setErrorHandler(ForgivingErrorHandler())
+
+    def getEvent(self):
+        if not self.pulldom.firstEvent[1]:
+            self.pulldom.lastEvent = self.pulldom.firstEvent
+        while not self.pulldom.firstEvent[1]:
+            buf = self.stream.read(self.bufsize)
+            if not buf:
+                self.parser.close()
+                return None
+            self.parser.feed(buf.replace("\0", " "))
+        rc = self.pulldom.firstEvent[1][0]
+        self.pulldom.firstEvent[1] = self.pulldom.firstEvent[1][1]
+        return rc
 
 def error(msg):
     sys.stderr.write("\n%s\n" % msg)
