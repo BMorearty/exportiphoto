@@ -15,9 +15,9 @@ import sys
 import time
 from datetime import datetime
 from optparse import OptionParser
-from xml.dom.pulldom import START_ELEMENT, END_ELEMENT, DOMEventStream
+from xml.dom.pulldom import START_ELEMENT, END_ELEMENT, DOMEventStream, PullDOM, ErrorHandler
 from xml.dom.minidom import Node
-from xml.sax import SAXException, make_parser
+from xml.sax import make_parser, handler
 
 try:
     import pyexiv2
@@ -473,23 +473,20 @@ end tell
             self.import_albums.append(this_album)
 
 
+class ForgivingErrorHandler(ErrorHandler):
+    def error(self, exception):
+        print "Warning: " + str(exception)
+    def fatalError(self, exception):
+        error("Fatal Error: %s" % str(exception) )
+        
+
 class ForgivingDOMEventStream(DOMEventStream):
-    def getEvent(self):
-        if not self.pulldom.firstEvent[1]:
-            self.pulldom.lastEvent = self.pulldom.firstEvent
-        while not self.pulldom.firstEvent[1]:
-            buf = self.stream.read(self.bufsize)
-            if not buf:
-                self.parser.close()
-                return None
-            try:
-                self.parser.feed(buf)
-            except SAXException, why:
-                sys.stderr.write("Warning: %s\n", why[1])
-                pass # try again, there was a parse error.
-        rc = self.pulldom.firstEvent[1][0]
-        self.pulldom.firstEvent[1] = self.pulldom.firstEvent[1][1]
-        return rc
+    def reset(self):
+        self.pulldom = PullDOM()
+        # This content handler relies on namespace support
+        self.parser.setFeature(handler.feature_namespaces, 1)
+        self.parser.setContentHandler(self.pulldom)
+        self.parser.setErrorHandler(ForgivingErrorHandler())
 
 def error(msg):
     sys.stderr.write("\n%s\n" % msg)
