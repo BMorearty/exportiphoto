@@ -14,8 +14,9 @@ Modifications by
 [Brian Morearty](http://github.com/BMorearty),
 [Mark Nottingham](http://github.com/mnot),
 [Duoglas Du](http://github.com/duoglas),
-[Avinash Meetoo](http://github.com/avinash), and
-[J.G. Field](http://gitub.com/jgfield)
+[Avinash Meetoo](http://github.com/avinash),
+[J.G. Field](http://gitub.com/jgfield), and
+[Hugo hallman](http://github.com/hhallman)
 
 Installation
 ------------
@@ -26,6 +27,9 @@ Run Terminal and enter this command:
 
 This copies exportiphoto.py to your Home folder. Actually you can put it
 anywhere you want.
+
+If you don't have the PIL (Python Imaging Library) install it with:
+    sudo easy_install pil
 
 Usage
 -----
@@ -42,6 +46,7 @@ Usage
         -m, --metadata    write metadata to images
         -f, --faces       store faces as keywords (requires -m)
         -q, --quiet       use quiet mode
+        -s, --shrink      shrink destination images in size
         -d, --date        stop using date prefix in folder name
         -x, --deconflict  deconflict export directories of same name (without
                           this, two events with the same name on the same date
