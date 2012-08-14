@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 __version__ = "0.6"
 
 import base64
@@ -48,7 +47,7 @@ class RemoveNullsStream(IOBase):
 class iPhotoLibrary(object):
     def __init__(self, albumDir, destDir, use_album=False, use_date=False,
                  use_faces=False, use_metadata=False, deconflict=False, quiet=False,
-                 year_dir=False, import_missing=False, import_from_date=None, test=False,
+                 year_dir=False, import_missing=False, import_from_date=None, export_from_date=None, test=False,
                  date_delimiter="-", ignore_time_delta=False):
         self.use_album = use_album
         self.use_date =  use_date
@@ -74,6 +73,11 @@ class iPhotoLibrary(object):
             self.import_from_date = datetime.strptime(import_from_date, "%Y-%m-%d")
         else:
             self.import_from_date = None
+        print export_from_date
+        if export_from_date:
+            self.export_from_date = datetime.strptime(export_from_date, "%Y-%m-%d")
+        else:
+            self.export_from_date = None
 
         if self.import_missing:
             self.build_import_list()
@@ -252,6 +256,7 @@ class iPhotoLibrary(object):
                 folderDate = None
             else:
                 folderDate = self.appleDate(folder["RollDateAsTimerInterval"])
+
             images = folder["KeyList"]
 
             folderName = folder[targetName]
@@ -264,6 +269,9 @@ class iPhotoLibrary(object):
                         album_name = unicode(album_name, 'utf-8')
                         if folderName == album_name:
                             self.import_albums.remove(ia)
+            print self.export_from_date
+            print folderDate
+            if self.export_from_date and folderDate < self.export_from_date: continue
 
             if folderDate and self.use_date:
                 date = '%(year)d%(delim)s%(month)02d%(delim)s%(day)02d' % {
@@ -455,12 +463,12 @@ end tell
 
                 # if import_from_date was specified, then skip folders where the year_dir is before the import_from_date.year
                 if self.import_from_date and int(year_dir) < self.import_from_date.year: continue
-
                 self.build_import_album_dirs(os.path.join(self.dest_dir, year_dir))
         else:
             self.build_import_album_dirs(self.dest_dir)
 
     def build_import_album_dirs(self, base_dir):
+
         delim = str(self.date_delimiter)
         for album_name in os.listdir(base_dir):
             album_names = [album_name]
@@ -477,6 +485,7 @@ end tell
                 folder_date = datetime.strptime(album_name, "%Y" + delim + "%m" + delim + "%d")
                 month, day, year = folder_date.strftime("%b %d %Y").split(" ")
                 album_names.append("%s %d, %s" %(month, int(day), year))
+            
 
             # Don't import folders that are prior to the specified date
             if not folder_date: continue
@@ -557,6 +566,11 @@ if __name__ == '__main__':
                              help="only import missing folers if folder date occurs after (YYYY-MM-DD). Uses date in folder name."
     )
 
+    option_parser.add_option("-p", "--export_from_date",
+                             action="store", type="string", dest="export_from_date",
+                             help="skip events older than this date (YYYY-MM-DD)."
+    )
+
     if pyexiv2:
         option_parser.add_option("-m", "--metadata",
                                  action="store_true", dest="metadata",
@@ -590,6 +604,7 @@ if __name__ == '__main__':
                                 year_dir=options.year_dir,
                                 import_missing=options.import_missing,
                                 import_from_date=options.import_from_date,
+                                export_from_date=options.export_from_date,
                                 test=options.test,
                                 date_delimiter=options.date_delimiter,
                                 ignore_time_delta=options.ignore_time_delta
