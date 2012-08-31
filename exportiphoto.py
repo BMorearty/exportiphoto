@@ -12,6 +12,8 @@ import re
 import shutil
 import stat
 import sys
+#sudo easy_install pil
+import Image
 
 import time
 from datetime import datetime
@@ -19,6 +21,8 @@ from io import IOBase
 from optparse import OptionParser
 from xml.dom.pulldom import START_ELEMENT, END_ELEMENT, parse
 from xml.dom.minidom import Node
+
+shrinkedSize = 1024, 1024
 
 try:
     import pyexiv2
@@ -49,7 +53,7 @@ class iPhotoLibrary(object):
     def __init__(self, albumDir, destDir, use_album=False, use_date=False,
                  use_faces=False, use_metadata=False, deconflict=False, quiet=False,
                  year_dir=False, import_missing=False, import_from_date=None, test=False,
-                 date_delimiter="-", ignore_time_delta=False):
+                 date_delimiter="-", ignore_time_delta=False, shrink=False):
         self.use_album = use_album
         self.use_date =  use_date
         self.use_faces = use_faces
@@ -69,6 +73,7 @@ class iPhotoLibrary(object):
         self.ignore_time_delta = ignore_time_delta
         self.date_delimiter = date_delimiter
         self.import_albums = []
+        self.shrink = shrink
 
         if import_from_date:
             self.import_from_date = datetime.strptime(import_from_date, "%Y-%m-%d")
@@ -319,6 +324,14 @@ tell application "iPhoto"
 end tell
 ' ''' % escaped_dir)
 
+    def copyshrinked(self, mFilePath, tFilePath):
+        try:
+            im = Image.open(mFilePath)
+            im.thumbnail(shrinkedSize, Image.ANTIALIAS)
+            im.save(tFilePath, "JPEG")
+        except IOError:
+            print "cannot create thumbnail for '%s'" % mFilePath
+
     def copyImage(self, imageId, folderName, folderDate):
         """
         Copy an image from the library to a folder in the dest_dir. The
@@ -368,7 +381,10 @@ end tell
                 return
 
         if not self.test:
-            shutil.copy2(mFilePath, tFilePath)
+            if self.shrink:
+                self.copyshrinked(mFilePath, tFilePath)
+            else:
+                shutil.copy2(mFilePath, tFilePath)
         md_written = False
         if self.use_metadata:
             md_written = self.writePhotoMD(imageId, tFilePath)
@@ -557,6 +573,11 @@ if __name__ == '__main__':
                              help="only import missing folers if folder date occurs after (YYYY-MM-DD). Uses date in folder name."
     )
 
+    option_parser.add_option("-s", "--shrink",
+                             action="store_true", dest="shrink",
+                             help="Shrink destination images in size."
+    )
+
     if pyexiv2:
         option_parser.add_option("-m", "--metadata",
                                  action="store_true", dest="metadata",
@@ -592,7 +613,8 @@ if __name__ == '__main__':
                                 import_from_date=options.import_from_date,
                                 test=options.test,
                                 date_delimiter=options.date_delimiter,
-                                ignore_time_delta=options.ignore_time_delta
+                                ignore_time_delta=options.ignore_time_delta,
+                                shrink=options.shrink
                                 )
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate)
