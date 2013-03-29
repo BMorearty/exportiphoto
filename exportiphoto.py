@@ -387,6 +387,18 @@ end tell
             mFilePath = mFilePath.replace(self.archive_dir, self.cur_archive_dir)
         mFilePath = path_insensitive(mFilePath)
 
+        if not os.path.exists(mFilePath):
+            # try to copy file from originals instead of modified
+            mFilePathNew = None
+            parts = mFilePath.split(os.sep)
+            for i in range(len(parts) - 1, -1, -1):
+                if parts[i] == 'Modified':
+                    parts[i] = 'Originals'
+                    mFilePathNew = os.sep.join(parts)
+                    break
+            if mFilePathNew and os.path.exists(mFilePathNew):
+                mFilePath = mFilePathNew
+
         # Deconflict ouput filenames
         tFilePath = os.path.join(folderName, basename)
         if self.deconflict:
