@@ -45,6 +45,38 @@ class RemoveNullsStream(IOBase):
     def close(self):
         self.file.close()
 
+def path_insensitive(path):
+    """
+    Get a case-insensitive path for use on a case sensitive system.
+    """
+    def _path_insensitive(path):
+        if path == '' or os.path.exists(path):
+            return path
+
+        path = os.path.normpath(path)
+        base = os.path.basename(path)
+        dirname = os.path.dirname(path)
+    
+        if not os.path.exists(dirname):
+            dirname = _path_insensitive(dirname)
+            if not dirname:
+                return
+    
+        try:
+            files = os.listdir(dirname)
+        except OSError:
+            return
+    
+        baselow = base.lower()
+        try:
+            basefinal = next(fl for fl in files if fl.lower() == baselow)
+        except StopIteration:
+            return
+    
+        return os.path.join(dirname, basefinal)
+    
+    return _path_insensitive(path) or path
+
 class iPhotoLibrary(object):
     def __init__(self, albumDir, destDir, use_album=False, use_date=False,
                  use_faces=False, use_metadata=False, deconflict=False, quiet=False,
@@ -69,6 +101,8 @@ class iPhotoLibrary(object):
         self.ignore_time_delta = ignore_time_delta
         self.date_delimiter = date_delimiter
         self.import_albums = []
+        self.archive_dir = None
+        self.cur_archive_dir = os.path.abspath(albumDir)
 
         if import_from_date:
             self.import_from_date = datetime.strptime(import_from_date, "%Y-%m-%d")
@@ -113,6 +147,10 @@ class iPhotoLibrary(object):
                     if node.nodeName == 'key':
                         doc.expandNode(node)
                         last_top_key = self.getText(node)
+                        stack.pop()
+                    elif last_top_key == 'Archive Path':
+                        doc.expandNode(node)
+                        self.archive_dir = self.dePlist(node)
                         stack.pop()
                     elif last_top_key == 'List of Keywords':
                         doc.expandNode(node)
@@ -344,6 +382,22 @@ end tell
 
         mFilePath = image["ImagePath"]
         basename = os.path.basename(mFilePath)
+
+        if self.archive_dir:
+            mFilePath = mFilePath.replace(self.archive_dir, self.cur_archive_dir)
+        mFilePath = path_insensitive(mFilePath)
+
+        if not os.path.exists(mFilePath):
+            # try to copy file from originals instead of modified
+            mFilePathNew = None
+            parts = mFilePath.split(os.sep)
+            for i in range(len(parts) - 1, -1, -1):
+                if parts[i] == 'Modified':
+                    parts[i] = 'Originals'
+                    mFilePathNew = os.sep.join(parts)
+                    break
+            if mFilePathNew and os.path.exists(mFilePathNew):
+                mFilePath = mFilePathNew
 
         # Deconflict ouput filenames
         tFilePath = os.path.join(folderName, basename)
