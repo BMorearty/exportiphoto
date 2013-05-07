@@ -88,7 +88,7 @@ class iPhotoLibrary(object):
     major_version = 2
     minor_version = 0
     interesting_image_keys = [
-        'ImagePath', 'Rating', 'Keywords', 'Caption', 'Comment', 'Faces',
+        'OriginalPath', 'ImagePath', 'Rating', 'Keywords', 'Caption', 'Comment', 'Faces',
         'face key'
     ]
     apple_epoch = 978307200
@@ -342,7 +342,10 @@ end tell
                     "Can't create %s: %s" % (folderName, why[1])
             self.status("  Created %s\n" % folderName)
 
-        mFilePath = image["ImagePath"]
+        if not "ImagePath" in image:
+            mFilePath = image["OriginalPath"]
+        else:
+            mFilePath = image["ImagePath"]
         basename = os.path.basename(mFilePath)
 
         # Deconflict ouput filenames
@@ -388,8 +391,13 @@ end tell
             image = self.images[imageId]
         except KeyError:
             raise iPhotoLibraryError, "Can't find image #%s" % imageId
+
         if not filePath:
-            filePath = image['ImagePath']
+            if not "ImagePath" in image:
+                filePath = image["OriginalPath"]
+            else:
+                filePath = image["ImagePath"]
+
 
         caption = image.get("Caption", None)
         rating = image.get("Rating", None)
