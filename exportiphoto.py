@@ -342,7 +342,7 @@ end tell
                     "Can't create %s: %s" % (folderName, why[1])
             self.status("  Created %s\n" % folderName)
 
-        if "OriginalPath" in image:
+        if not "ImagePath" in image:
             mFilePath = image["OriginalPath"]
         else:
             mFilePath = image["ImagePath"]
@@ -393,7 +393,7 @@ end tell
             raise iPhotoLibraryError, "Can't find image #%s" % imageId
 
         if not filePath:
-            if "OriginalPath" in image:
+            if not "ImagePath" in image:
                 filePath = image["OriginalPath"]
             else:
                 filePath = image["ImagePath"]
