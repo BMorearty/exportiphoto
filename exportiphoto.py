@@ -49,7 +49,7 @@ class iPhotoLibrary(object):
     def __init__(self, albumDir, destDir, use_album=False, use_date=False,
                  use_faces=False, use_metadata=False, deconflict=False, quiet=False,
                  year_dir=False, import_missing=False, import_from_date=None, test=False,
-                 date_delimiter="-", ignore_time_delta=False):
+                 date_delimiter="-", ignore_time_delta=False, originals=False):
         self.use_album = use_album
         self.use_date =  use_date
         self.use_faces = use_faces
@@ -68,6 +68,7 @@ class iPhotoLibrary(object):
         self.import_missing = import_missing
         self.ignore_time_delta = ignore_time_delta
         self.date_delimiter = date_delimiter
+        self.originals=originals
         self.import_albums = []
 
         if import_from_date:
@@ -342,10 +343,19 @@ end tell
                     "Can't create %s: %s" % (folderName, why[1])
             self.status("  Created %s\n" % folderName)
 
-        if not "ImagePath" in image:
-            mFilePath = image["OriginalPath"]
+        #Unedited images only have ImagePath, edited images have both ImagePath and OriginalPath,
+        #except for some corrupted iPhoto libraries, where some images only have OriginalPath.
+        #Trying to satisfy both conditions with this nested logic.
+        if self.originals:
+            if "OriginalPath" in image:
+                mFilePath = image["OriginalPath"]
+            else:
+                mFilePath = image["ImagePath"]
         else:
-            mFilePath = image["ImagePath"]
+            if not "ImagePath" in image:
+                mFilePath = image["OriginalPath"]
+            else:
+                mFilePath = image["ImagePath"]
         basename = os.path.basename(mFilePath)
 
         # Deconflict ouput filenames
@@ -393,10 +403,16 @@ end tell
             raise iPhotoLibraryError, "Can't find image #%s" % imageId
 
         if not filePath:
-            if not "ImagePath" in image:
-                filePath = image["OriginalPath"]
+            if self.originals:
+                if "OriginalPath" in image:
+                    mFilePath = image["OriginalPath"]
+                else:
+                    mFilePath = image["ImagePath"]
             else:
-                filePath = image["ImagePath"]
+                if not "ImagePath" in image:
+                    mFilePath = image["OriginalPath"]
+                else:
+                    mFilePath = image["ImagePath"]
 
 
         caption = image.get("Caption", None)
@@ -512,7 +528,8 @@ if __name__ == '__main__':
         faces=False,
         quiet=False,
         date=True,
-        ignore_time_delta=False
+        ignore_time_delta=False,
+        originals=False
     )
 
     option_parser.add_option("-a", "--albums",
@@ -528,6 +545,11 @@ if __name__ == '__main__':
     option_parser.add_option("-d", "--date",
                              action="store_false", dest="date",
                              help="stop use date prefix in folder name"
+    )
+    
+    option_parser.add_option("-o", "--originals",
+                             action="store_true", dest="originals",
+                             help="export original images instead of edited ones"
     )
 
     option_parser.add_option("-x", "--deconflict",
@@ -600,7 +622,8 @@ if __name__ == '__main__':
                                 import_from_date=options.import_from_date,
                                 test=options.test,
                                 date_delimiter=options.date_delimiter,
-                                ignore_time_delta=options.ignore_time_delta
+                                ignore_time_delta=options.ignore_time_delta,
+                                originals=options.originals
                                 )
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate)
