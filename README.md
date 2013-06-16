@@ -43,6 +43,7 @@ Usage
         -f, --faces       store faces as keywords (requires -m)
         -q, --quiet       use quiet mode
         -d, --date        stop using date prefix in folder name
+        -o, --originals   export original images instead of edited ones
         -x, --deconflict  deconflict export directories of same name (without
                           this, two events with the same name on the same date
                           are merged.)
