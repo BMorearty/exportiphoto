@@ -380,7 +380,7 @@ end tell
                 self.status("-")
                 return
 
-        if not self.test:
+        if not self.test and os.path.exists(mFilePath):
             shutil.copy2(mFilePath, tFilePath)
         md_written = False
         if self.use_metadata:
