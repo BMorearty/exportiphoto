@@ -279,10 +279,11 @@ class iPhotoLibrary(object):
                     outputPath = folderName
                 else:
                     outputPath = date + " " + folderName
-                if self.year_dir:
-                    outputPath = os.path.join(str(folderDate.year), outputPath)
             else:
                 outputPath = folderName
+
+            if self.year_dir:
+                outputPath = os.path.join(str(folderDate.year), outputPath)
 
             # Deconflict output directories
             targetFileDir = os.path.join(self.dest_dir, outputPath)
@@ -304,7 +305,7 @@ class iPhotoLibrary(object):
                     func(imageId, targetFileDir, folderDate)
             self.status("\n")
 
-        if self.import_missing: 
+        if self.import_missing:
             self.status("importing folders:\n")
             for ia in self.import_albums:
                 self.status(ia["album_dir"] + "\n")
@@ -546,7 +547,7 @@ if __name__ == '__main__':
                              action="store_false", dest="date",
                              help="stop use date prefix in folder name"
     )
-    
+
     option_parser.add_option("-o", "--originals",
                              action="store_true", dest="originals",
                              help="export original images instead of edited ones"
@@ -608,7 +609,7 @@ if __name__ == '__main__':
     try:
         if options.date_delimiter is None:
             options.date_delimiter = default_date_delimiter
-        
+
         library = iPhotoLibrary(args[0], # src
                                 args[1], # dest
                                 use_album=options.albums,
