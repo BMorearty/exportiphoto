@@ -139,7 +139,7 @@ class iPhotoLibrary(object):
                         stack.pop()
                         if minor_version > self.minor_version:
                             self.status(
-                                "\nI don't recognise iPhoto libraries when the minor version is %i, but let's try anyway.\n" % minor_version,
+                                "\nI don't recognize iPhoto libraries when the minor version is %i, but let's try anyway.\n" % minor_version,
                                 force=True
                             )
 
@@ -584,7 +584,7 @@ if __name__ == '__main__':
 
     option_parser.add_option("-z", "--import_from_date",
                              action="store", type="string", dest="import_from_date",
-                             help="only import missing folers if folder date occurs after (YYYY-MM-DD). Uses date in folder name."
+                             help="only import missing folders if folder date occurs after (YYYY-MM-DD). Uses date in folder name."
     )
 
     if pyexiv2:
