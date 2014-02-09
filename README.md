@@ -20,14 +20,19 @@ Modifications by
 iPhoto can do this now
 ----------------------
 
-Great news. If you upgrade to iPhoto 9.4.3 or later, you can export
-dirctly out of iPhoto to a folder structure. You don't need to use
+Great news. If you upgrade to iPhoto 9.4.3 or later, [you can export
+dirctly out of iPhoto to a folder
+structure](https://discussions.apple.com/message/24759040#24759040). You don't need to use
 exportiphoto.
 
 Here's how:
 
 1. Choose File &rarr; Export from the menu.
-2. Choose Kind: Original and Subfolder Format: Event Name.
+2. Choose Kind: Original or JPEG. If you want the original picture at
+   their original resolution, use Original. If you want to include all
+   edits, use JPEG and check both checkboxes to get the keywords,
+   titles, etc. included in the file.
+3. Choose Subfolder Format: Event Name.
 
 ![Exporting folders out of iPhoto](iPhoto11exportbyevent.png)
 
