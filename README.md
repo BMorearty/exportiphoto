@@ -17,6 +17,20 @@ Modifications by
 [Avinash Meetoo](http://github.com/avinash), and
 [J.G. Field](http://gitub.com/jgfield)
 
+iPhoto can do this now
+----------------------
+
+Great news. If you upgrade to iPhoto 9.4.3 or later, you can export
+dirctly out of iPhoto to a folder structure. You don't need to use
+exportiphoto.
+
+Here's how:
+
+1. Choose File &rarr; Export from the menu.
+2. Choose Kind: Original and Subfolder Format: Event Name.
+
+![Exporting folders out of iPhoto](iPhoto11exportbyevent.png)
+
 Installation
 ------------
 
