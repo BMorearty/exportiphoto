@@ -74,6 +74,9 @@ Usage
                           only import missing folers if folder date occurs after
                           (YYYY-MM-DD). Uses date in folder name.
         -t, --test        dont actually copy files or import folders
+        -s, --stop_on_not_found_image
+                                stop if image not found.
+
 
 2. There is no step 2
 
