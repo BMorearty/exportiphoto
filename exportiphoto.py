@@ -49,7 +49,7 @@ class iPhotoLibrary(object):
     def __init__(self, albumDir, destDir, use_album=False, use_date=False,
                  use_faces=False, use_metadata=False, deconflict=False, quiet=False,
                  year_dir=False, import_missing=False, import_from_date=None, test=False,
-                 date_delimiter="-", ignore_time_delta=False, originals=False):
+                 date_delimiter="-", ignore_time_delta=False, originals=False, stop_on_not_found_image=False):
         self.use_album = use_album
         self.use_date =  use_date
         self.use_faces = use_faces
@@ -70,7 +70,7 @@ class iPhotoLibrary(object):
         self.date_delimiter = date_delimiter
         self.originals=originals
         self.import_albums = []
-
+        self.stop_on_not_found_image = stop_on_not_found_image
         if import_from_date:
             self.import_from_date = datetime.strptime(import_from_date, "%Y-%m-%d")
         else:
@@ -358,6 +358,13 @@ end tell
                 mFilePath = image["ImagePath"]
         basename = os.path.basename(mFilePath)
 
+        if not os.path.exists(mFilePath):
+            msg = "Can't find file %s\n" % mFilePath
+            if self.stop_on_not_found_image:
+                raise iPhotoLibraryError, msg
+            else:
+                self.status("    %s" % msg)
+
         # Deconflict ouput filenames
         tFilePath = os.path.join(folderName, basename)
         if self.deconflict:
@@ -529,7 +536,8 @@ if __name__ == '__main__':
         quiet=False,
         date=True,
         ignore_time_delta=False,
-        originals=False
+        originals=False,
+        stop_on_not_found_image=False
     )
 
     option_parser.add_option("-a", "--albums",
@@ -587,6 +595,11 @@ if __name__ == '__main__':
                              help="only import missing folers if folder date occurs after (YYYY-MM-DD). Uses date in folder name."
     )
 
+    option_parser.add_option("-s", "--stop_on_not_found_image",
+                             action="store_true", dest="stop_on_not_found_image",
+                             help="stop if image not found."
+                             )
+
     if pyexiv2:
         option_parser.add_option("-m", "--metadata",
                                  action="store_true", dest="metadata",
@@ -623,7 +636,8 @@ if __name__ == '__main__':
                                 test=options.test,
                                 date_delimiter=options.date_delimiter,
                                 ignore_time_delta=options.ignore_time_delta,
-                                originals=options.originals
+                                originals=options.originals,
+                                stop_on_not_found_image=options.stop_on_not_found_image
                                 )
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate)
