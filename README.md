@@ -163,3 +163,10 @@ Note that you'll have to use python2.6 to run the script; e.g.,
 
     python2.6 exportiphoto ...
 
+Alternate version that avoids pyexiv2
+-------------------------------------
+
+[Alex Szatmary](https://github.com/AlexSzatmary) has made a [fork of this project
+that doesn't rely on installing pyexiv2](https://github.com/AlexSzatmary/exportiphoto) 
+(which apparently can be difficult on Apple Silicon).
+Alex's fork uses exiftool instead.
