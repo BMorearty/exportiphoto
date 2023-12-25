@@ -49,7 +49,7 @@ class iPhotoLibrary(object):
     def __init__(self, albumDir, destDir, use_album=False, use_date=False,
                  use_faces=False, use_metadata=False, deconflict=False, quiet=False,
                  year_dir=False, import_missing=False, import_from_date=None, test=False,
-                 date_delimiter="-", ignore_time_delta=False, originals=False):
+                 date_delimiter="-", ignore_time_delta=False, originals=False, log_errors_only=False):
         self.use_album = use_album
         self.use_date =  use_date
         self.use_faces = use_faces
@@ -69,6 +69,7 @@ class iPhotoLibrary(object):
         self.ignore_time_delta = ignore_time_delta
         self.date_delimiter = date_delimiter
         self.originals=originals
+        self.log_errors_only=log_errors_only
         self.import_albums = []
 
         if import_from_date:
@@ -301,7 +302,13 @@ class iPhotoLibrary(object):
             ))
             for imageId in images:
                 for func in funcs:
-                    func(imageId, targetFileDir, folderDate)
+                    try:
+                        func(imageId, targetFileDir, folderDate)
+                    except iPhotoLibraryError, why:
+                        if self.log_errors_only:
+                            self.status("\n%s\n" % why[0])
+                        else:
+                            raise
             self.status("\n")
 
         if self.import_missing: 
@@ -586,6 +593,11 @@ if __name__ == '__main__':
                              action="store", type="string", dest="import_from_date",
                              help="only import missing folers if folder date occurs after (YYYY-MM-DD). Uses date in folder name."
     )
+    
+    option_parser.add_option("-l", "--log_errors_only",
+                            action="store_true", dest="log_errors_only",
+                            help="log errors and continue export."
+    )
 
     if pyexiv2:
         option_parser.add_option("-m", "--metadata",
@@ -623,7 +635,8 @@ if __name__ == '__main__':
                                 test=options.test,
                                 date_delimiter=options.date_delimiter,
                                 ignore_time_delta=options.ignore_time_delta,
-                                originals=options.originals
+                                originals=options.originals,
+                                log_errors_only=options.log_errors_only
                                 )
         def copyImage(imageId, folderName, folderDate):
             library.copyImage(imageId, folderName, folderDate)
